@@ -399,16 +399,105 @@
       }
     }
 
+    function rectsOverlap(a, b) {
+      return !(
+        a.right <= b.left ||
+        a.left >= b.right ||
+        a.bottom <= b.top ||
+        a.top >= b.bottom
+      );
+    }
+
+    function estimateLabelRectScreen(item, offsetXScreen, offsetYScreen) {
+      const cx = item.x * scale + translateX + offsetXScreen;
+      const cy = item.y * scale + translateY + offsetYScreen;
+      const width = item.textWidth * scale;
+      const height = item.textHeight * scale;
+
+      return {
+        left: cx - width / 2 - 3,
+        right: cx + width / 2 + 3,
+        top: cy - height / 2 - 2,
+        bottom: cy + height / 2 + 2
+      };
+    }
+
+    function applyLabelLayout() {
+      const placed = [];
+
+      const ordered = [...labelItems]
+        .filter(item => scale >= item.minZoom)
+        .sort((a, b) => {
+          if (a.priority !== b.priority) return b.priority - a.priority;
+          return a.name.length - b.name.length;
+        });
+
+      for (const item of labelItems) {
+        item.el.style.display = "none";
+      }
+
+      for (const item of ordered) {
+        const fontSize = item.baseFontSize;
+        const tryOffsets = [
+          [0, 0],
+          [0, -fontSize * 1.0],
+          [0, fontSize * 1.0],
+          [-fontSize * 1.2, 0],
+          [fontSize * 1.2, 0],
+          [-fontSize * 1.0, -fontSize * 0.9],
+          [fontSize * 1.0, -fontSize * 0.9],
+          [-fontSize * 1.0, fontSize * 0.9],
+          [fontSize * 1.0, fontSize * 0.9],
+          [0, -fontSize * 1.8],
+          [0, fontSize * 1.8]
+        ];
+
+        let chosen = null;
+        let chosenRect = null;
+
+        for (const [ox, oy] of tryOffsets) {
+          const rect = estimateLabelRectScreen(item, ox * scale, oy * scale);
+
+          if (
+            rect.right < -20 ||
+            rect.left > VIEW_W + 20 ||
+            rect.bottom < -20 ||
+            rect.top > VIEW_H + 20
+          ) {
+            continue;
+          }
+
+          let collides = false;
+          for (const p of placed) {
+            if (rectsOverlap(rect, p.rect)) {
+              collides = true;
+              break;
+            }
+          }
+
+          if (!collides) {
+            chosen = [ox, oy];
+            chosenRect = rect;
+            break;
+          }
+        }
+
+        if (!chosen) continue;
+
+        item.el.setAttribute("x", (item.x + chosen[0]).toFixed(2));
+        item.el.setAttribute("y", (item.y + chosen[1]).toFixed(2));
+        item.el.style.display = "";
+
+        placed.push({
+          rect: chosenRect
+        });
+      }
+    }
+
     function setTransform() {
       clampTranslate();
       world.setAttribute("transform", `translate(${translateX} ${translateY}) scale(${scale})`);
-      updateLabelsVisibility();
-    }
-
-    function updateLabelsVisibility() {
-      for (const item of labelItems) {
-        item.el.style.display = scale >= item.minZoom ? "" : "none";
-      }
+      applyLabelLayout();
     }
 
     function zoomAt(clientX, clientY, factor) {
@@ -561,9 +650,26 @@
           text.textContent = name;
 
           labelsGroup.appendChild(text);
+
+          const textWidth = Math.max(
+            fontSize * 1.2,
+            fontSize * name.length * 0.58
+          );
+          const textHeight = fontSize * 1.15;
+
           labelItems.push({
             el: text,
-            minZoom: minZoomForLabel
+            name,
+            x: labelPos.x,
+            y: labelPos.y,
+            area: labelPos.area,
+            width: labelPos.width,
+            height: labelPos.height,
+            minZoom: minZoomForLabel,
+            baseFontSize: fontSize,
+            textWidth,
+            textHeight,
+            priority: labelPos.area * 10 + Math.min(labelPos.width, 120) * 4 + Math.min(labelPos.height, 60) * 3
           });
         }
 
