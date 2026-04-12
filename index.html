@@ -86,24 +86,30 @@
     <svg id="svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet">
       <g id="viewport">
         <rect x="-5000" y="-5000" width="10000" height="10000" fill="#0b1f4d"></rect>
-        <g id="countries"></g>
-        <g id="labels"></g>
+
+        <g id="world">
+          <rect x="0" y="0" width="1600" height="900" fill="#0b1f4d"></rect>
+          <g id="countries"></g>
+          <g id="labels"></g>
+        </g>
       </g>
     </svg>
   </div>
 
   <script>
     const svg = document.getElementById("svg");
-    const viewport = document.getElementById("viewport");
+    const world = document.getElementById("world");
     const countriesGroup = document.getElementById("countries");
     const labelsGroup = document.getElementById("labels");
     const loading = document.getElementById("loading");
 
     const VIEW_W = 1600;
     const VIEW_H = 900;
+    const WORLD_W = 1600;
+    const WORLD_H = 900;
 
-    let scale = 1.0;
-    const minScale = 0.8;
+    let scale = 1;
+    let minScale = 1;
     const maxScale = 20;
     let translateX = 0;
     let translateY = 0;
@@ -114,21 +120,23 @@
 
     let pinchStartDist = 0;
     let pinchStartScale = 1;
+    let pinchStartTX = 0;
+    let pinchStartTY = 0;
     let pinchCenter = null;
 
     const labelItems = [];
 
-    function koreaCenteredLon(lon) {
-      let v = lon - 127;
+    function project(lon, lat) {
+      const x = ((lon + 180) / 360) * WORLD_W;
+      const y = ((90 - lat) / 180) * WORLD_H;
+      return [x, y];
+    }
+
+    function normalizeLon180(lon) {
+      let v = lon;
       while (v < -180) v += 360;
       while (v > 180) v -= 360;
       return v;
-    }
-
-    function project(lon, lat) {
-      const x = ((koreaCenteredLon(lon) + 180) / 360) * VIEW_W;
-      const y = ((90 - lat) / 180) * VIEW_H;
-      return [x, y];
     }
 
     function splitRingAtDateline(ring) {
@@ -141,9 +149,9 @@
         const prev = ring[i - 1];
         const curr = ring[i];
 
-        const prevAdj = koreaCenteredLon(prev[0]);
-        const currAdj = koreaCenteredLon(curr[0]);
-        const jump = Math.abs(currAdj - prevAdj);
+        const prevLon = normalizeLon180(prev[0]);
+        const currLon = normalizeLon180(curr[0]);
+        const jump = Math.abs(currLon - prevLon);
 
         if (jump > 180) {
           if (current.length >= 3) segments.push(current);
@@ -277,8 +285,47 @@
       return Math.max(7, Math.min(24, heightLimited));
     }
 
+    function getCountryName(feature) {
+      const p = feature.properties || {};
+      return (
+        p.ADMIN ||
+        p.admin ||
+        p.NAME ||
+        p.name ||
+        p.SOVEREIGNT ||
+        p.sovereignt ||
+        p.BRK_NAME ||
+        p.brk_name ||
+        "이름없음"
+      );
+    }
+
+    function clampTranslate() {
+      const scaledW = WORLD_W * scale;
+      const scaledH = WORLD_H * scale;
+
+      if (scaledW <= VIEW_W) {
+        translateX = (VIEW_W - scaledW) / 2;
+      } else {
+        const minX = VIEW_W - scaledW;
+        const maxX = 0;
+        if (translateX < minX) translateX = minX;
+        if (translateX > maxX) translateX = maxX;
+      }
+
+      if (scaledH <= VIEW_H) {
+        translateY = (VIEW_H - scaledH) / 2;
+      } else {
+        const minY = VIEW_H - scaledH;
+        const maxY = 0;
+        if (translateY < minY) translateY = minY;
+        if (translateY > maxY) translateY = maxY;
+      }
+    }
+
     function setTransform() {
-      viewport.setAttribute(
+      clampTranslate();
+      world.setAttribute(
         "transform",
         `translate(${translateX} ${translateY}) scale(${scale})`
       );
@@ -287,11 +334,7 @@
 
     function updateLabelsVisibility() {
       for (const item of labelItems) {
-        if (scale >= item.minZoom) {
-          item.el.style.display = "";
-        } else {
-          item.el.style.display = "none";
-        }
+        item.el.style.display = scale >= item.minZoom ? "" : "none";
       }
     }
 
@@ -365,6 +408,8 @@
       if (e.touches.length === 2) {
         pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
         pinchStartScale = scale;
+        pinchStartTX = translateX;
+        pinchStartTY = translateY;
         pinchCenter = getTouchCenter(e.touches[0], e.touches[1]);
       }
     }, { passive: false });
@@ -382,16 +427,16 @@
         const py = ((center.y - rect.top) / rect.height) * VIEW_H;
 
         const newScale = Math.max(minScale, Math.min(maxScale, pinchStartScale * factor));
-        const actualFactor = newScale / scale;
+        const actualFactor = newScale / pinchStartScale;
 
-        translateX = px - (px - translateX) * actualFactor;
-        translateY = py - (py - translateY) * actualFactor;
+        translateX = px - (px - pinchStartTX) * actualFactor;
+        translateY = py - (py - pinchStartTY) * actualFactor;
 
         if (pinchCenter) {
           const prevPx = ((pinchCenter.x - rect.left) / rect.width) * VIEW_W;
           const prevPy = ((pinchCenter.y - rect.top) / rect.height) * VIEW_H;
-          translateX += (px - prevPx);
-          translateY += (py - prevPy);
+          translateX += px - prevPx;
+          translateY += py - prevPy;
         }
 
         scale = newScale;
@@ -400,19 +445,15 @@
       }
     }, { passive: false });
 
-    function getCountryName(feature) {
-      const p = feature.properties || {};
-      return (
-        p.ADMIN ||
-        p.admin ||
-        p.NAME ||
-        p.name ||
-        p.SOVEREIGNT ||
-        p.sovereignt ||
-        p.BRK_NAME ||
-        p.brk_name ||
-        "이름없음"
-      );
+    function centerOnKorea(initialScale) {
+      const koreaLon = 127.7669;
+      const koreaLat = 35.9078;
+      const [kx, ky] = project(koreaLon, koreaLat);
+
+      scale = Math.max(minScale, Math.min(maxScale, initialScale));
+      translateX = VIEW_W / 2 - kx * scale;
+      translateY = VIEW_H / 2 - ky * scale;
+      setTransform();
     }
 
     async function loadWorld() {
@@ -437,7 +478,7 @@
 
           const name = getCountryName(feature);
           const fontSize = chooseFontSize(labelPos.area, labelPos.width, labelPos.height, name);
-          const minZoom = chooseLabelZoom(labelPos.area, labelPos.width, labelPos.height, name);
+          const minZoomForLabel = chooseLabelZoom(labelPos.area, labelPos.width, labelPos.height, name);
 
           const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
           text.setAttribute("x", labelPos.x);
@@ -449,16 +490,14 @@
           labelsGroup.appendChild(text);
           labelItems.push({
             el: text,
-            minZoom
+            minZoom: minZoomForLabel
           });
         }
 
         loading.classList.add("hidden");
 
-        scale = 1.35;
-        translateX = VIEW_W * 0.08;
-        translateY = VIEW_H * 0.03;
-        setTransform();
+        minScale = 1;
+        centerOnKorea(2.2);
       } catch (err) {
         loading.textContent = "지도 데이터를 불러오지 못했습니다.";
         loading.classList.add("error");
