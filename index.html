@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <title>한국 중심 세계지도</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b1f4d;
+      touch-action: none;
+      font-family: Arial, "Malgun Gothic", sans-serif;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+      background: #0b1f4d;
+      cursor: grab;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #map:active {
+      cursor: grabbing;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #0b1f4d;
+    }
+
+    .land {
+      fill: #e7d8b4;
+      stroke: #4f4330;
+      stroke-width: 0.6;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 20px;
+      background: #0b1f4d;
+      z-index: 10;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="map">
+    <div id="loading" class="loading">지도를 불러오는 중...</div>
+    <svg id="svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet">
+      <g id="viewport">
+        <rect x="-4000" y="-4000" width="8000" height="8000" fill="#0b1f4d"></rect>
+        <g id="countries"></g>
+      </g>
+    </svg>
+  </div>
+
+  <script>
+    const svg = document.getElementById("svg");
+    const viewport = document.getElementById("viewport");
+    const countriesGroup = document.getElementById("countries");
+    const loading = document.getElementById("loading");
+    const map = document.getElementById("map");
+
+    const VIEW_W = 1600;
+    const VIEW_H = 900;
+
+    let scale = 1.0;
+    let minScale = 0.8;
+    let maxScale = 18;
+    let translateX = 0;
+    let translateY = 0;
+
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    let pinchStartDist = 0;
+    let pinchStartScale = 1;
+    let pinchCenter = null;
+
+    function koreaCenteredLon(lon) {
+      let v = lon - 127;
+      while (v < -180) v += 360;
+      while (v > 180) v -= 360;
+      return v;
+    }
+
+    function project(lon, lat) {
+      const x = ((koreaCenteredLon(lon) + 180) / 360) * VIEW_W;
+      const y = ((90 - lat) / 180) * VIEW_H;
+      return [x, y];
+    }
+
+    function buildPathFromRing(ring) {
+      if (!ring || !ring.length) return "";
+      let d = "";
+      for (let i = 0; i < ring.length; i++) {
+        const [lon, lat] = ring[i];
+        const [x, y] = project(lon, lat);
+        d += (i === 0 ? "M" : "L") + x + " " + y + " ";
+      }
+      d += "Z ";
+      return d;
+    }
+
+    function splitRingAtDateline(ring) {
+      if (!ring || ring.length < 2) return [ring];
+
+      const segments = [];
+      let current = [ring[0]];
+
+      for (let i = 1; i < ring.length; i++) {
+        const prev = ring[i - 1];
+        const curr = ring[i];
+
+        const prevAdj = koreaCenteredLon(prev[0]);
+        const currAdj = koreaCenteredLon(curr[0]);
+        const jump = Math.abs(currAdj - prevAdj);
+
+        if (jump > 180) {
+          segments.push(current);
+          current = [curr];
+        } else {
+          current.push(curr);
+        }
+      }
+
+      if (current.length) segments.push(current);
+      return segments.filter(seg => seg.length >= 3);
+    }
+
+    function geometryToPath(geometry) {
+      let d = "";
+
+      if (geometry.type === "Polygon") {
+        for (const ring of geometry.coordinates) {
+          const pieces = splitRingAtDateline(ring);
+          for (const piece of pieces) {
+            d += buildPathFromRing(piece);
+          }
+        }
+      } else if (geometry.type === "MultiPolygon") {
+        for (const polygon of geometry.coordinates) {
+          for (const ring of polygon) {
+            const pieces = splitRingAtDateline(ring);
+            for (const piece of pieces) {
+              d += buildPathFromRing(piece);
+            }
+          }
+        }
+      }
+
+      return d;
+    }
+
+    function setTransform() {
+      viewport.setAttribute(
+        "transform",
+        `translate(${translateX} ${translateY}) scale(${scale})`
+      );
+    }
+
+    function zoomAt(clientX, clientY, factor) {
+      const rect = svg.getBoundingClientRect();
+      const px = ((clientX - rect.left) / rect.width) * VIEW_W;
+      const py = ((clientY - rect.top) / rect.height) * VIEW_H;
+
+      const newScale = Math.max(minScale, Math.min(maxScale, scale * factor));
+      const actualFactor = newScale / scale;
+      if (actualFactor === 1) return;
+
+      translateX = px - (px - translateX) * actualFactor;
+      translateY = py - (py - translateY) * actualFactor;
+      scale = newScale;
+      setTransform();
+    }
+
+    function getTouchDistance(t1, t2) {
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.hypot(dx, dy);
+    }
+
+    function getTouchCenter(t1, t2) {
+      return {
+        x: (t1.clientX + t2.clientX) / 2,
+        y: (t1.clientY + t2.clientY) / 2
+      };
+    }
+
+    svg.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+      zoomAt(e.clientX, e.clientY, factor);
+    }, { passive: false });
+
+    svg.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "mouse" || e.button === 0) {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        svg.setPointerCapture(e.pointerId);
+      }
+    });
+
+    svg.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      translateX += dx * (VIEW_W / svg.getBoundingClientRect().width);
+      translateY += dy * (VIEW_H / svg.getBoundingClientRect().height);
+      setTransform();
+    });
+
+    function endDrag() {
+      isDragging = false;
+    }
+
+    svg.addEventListener("pointerup", endDrag);
+    svg.addEventListener("pointercancel", endDrag);
+    svg.addEventListener("pointerleave", endDrag);
+
+    svg.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 2) {
+        pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
+        pinchStartScale = scale;
+        pinchCenter = getTouchCenter(e.touches[0], e.touches[1]);
+      }
+    }, { passive: false });
+
+    svg.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = getTouchDistance(e.touches[0], e.touches[1]);
+        const center = getTouchCenter(e.touches[0], e.touches[1]);
+        const factor = dist / pinchStartDist;
+
+        scale = Math.max(minScale, Math.min(maxScale, pinchStartScale * factor));
+
+        const rect = svg.getBoundingClientRect();
+        const px = ((center.x - rect.left) / rect.width) * VIEW_W;
+        const py = ((center.y - rect.top) / rect.height) * VIEW_H;
+
+        if (pinchCenter) {
+          const prevPx = ((pinchCenter.x - rect.left) / rect.width) * VIEW_W;
+          const prevPy = ((pinchCenter.y - rect.top) / rect.height) * VIEW_H;
+          translateX += (px - prevPx);
+          translateY += (py - prevPy);
+        }
+
+        pinchCenter = center;
+        setTransform();
+      }
+    }, { passive: false });
+
+    async function loadWorld() {
+      try {
+        const res = await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+        const topo = await res.json();
+
+        const world = topo.objects.countries;
+        const arcs = topo.arcs;
+
+        function decodeArc(arc) {
+          let x = 0, y = 0;
+          const points = [];
+          for (const [dx, dy] of arc) {
+            x += dx;
+            y += dy;
+            const lon = x * topo.transform.scale[0] + topo.transform.translate[0];
+            const lat = y * topo.transform.scale[1] + topo.transform.translate[1];
+            points.push([lon, lat]);
+          }
+          return points;
+        }
+
+        const decodedArcs = arcs.map(decodeArc);
+
+        function arcToCoords(index) {
+          if (index >= 0) return decodedArcs[index];
+          return [...decodedArcs[~index]].reverse();
+        }
+
+        function polygonToCoords(polygonArcs) {
+          return polygonArcs.map(ringArcIndexes => {
+            const ring = [];
+            ringArcIndexes.forEach((arcIndex, idx) => {
+              const coords = arcToCoords(arcIndex);
+              if (idx === 0) {
+                ring.push(...coords);
+              } else {
+                ring.push(...coords.slice(1));
+              }
+            });
+            return ring;
+          });
+        }
+
+        const geoms = world.geometries;
+
+        for (const geom of geoms) {
+          let geometry;
+
+          if (geom.type === "Polygon") {
+            geometry = {
+              type: "Polygon",
+              coordinates: polygonToCoords(geom.arcs)
+            };
+          } else if (geom.type === "MultiPolygon") {
+            geometry = {
+              type: "MultiPolygon",
+              coordinates: geom.arcs.map(poly => polygonToCoords(poly))
+            };
+          } else {
+            continue;
+          }
+
+          const d = geometryToPath(geometry);
+          if (!d) continue;
+
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          path.setAttribute("d", d);
+          path.setAttribute("class", "land");
+          countriesGroup.appendChild(path);
+        }
+
+        loading.classList.add("hidden");
+
+        scale = 1.35;
+        translateX = VIEW_W * 0.08;
+        translateY = VIEW_H * 0.03;
+        setTransform();
+      } catch (err) {
+        loading.textContent = "지도 데이터를 불러오지 못했습니다.";
+        console.error(err);
+      }
+    }
+
+    loadWorld();
+  </script>
+</body>
+</html>
