@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>한국 중심 세계지도</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.6.1/ol.css" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b1f4d;
+      touch-action: none;
+      font-family: Arial, "Malgun Gothic", sans-serif;
+    }
+
+    #map {
+      width: 100vw;
+      height: 100vh;
+      background: #0b1f4d;
+    }
+
+    .ol-viewport,
+    .ol-layer,
+    .ol-canvas,
+    canvas {
+      background: #0b1f4d !important;
+    }
+
+    .ol-control {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script type="module">
+    import Map from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/+esm';
+    import View from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/View.js/+esm';
+    import GeoJSON from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/format/GeoJSON.js/+esm';
+    import VectorSource from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/source/Vector.js/+esm';
+    import VectorLayer from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/layer/Vector.js/+esm';
+    import {Fill, Stroke, Style} from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/style.js/+esm';
+    import DragPan from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/interaction/DragPan.js/+esm';
+    import MouseWheelZoom from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/interaction/MouseWheelZoom.js/+esm';
+    import PinchZoom from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/interaction/PinchZoom.js/+esm';
+    import defaults from 'https://cdn.jsdelivr.net/npm/ol@10.6.1/interaction/defaults.js/+esm';
+
+    const SEA_COLOR = '#0b1f4d';
+    const LAND_COLOR = '#e7d8b4';
+    const BORDER_COLOR = '#4f4330';
+
+    const countryStyle = new Style({
+      fill: new Fill({ color: LAND_COLOR }),
+      stroke: new Stroke({
+        color: BORDER_COLOR,
+        width: 0.8
+      })
+    });
+
+    const vectorSource = new VectorSource({
+      url: 'https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson',
+      format: new GeoJSON({
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:4326'
+      }),
+      wrapX: false
+    });
+
+    const countryLayer = new VectorLayer({
+      source: vectorSource,
+      style: countryStyle,
+      background: SEA_COLOR,
+      renderBuffer: 200
+    });
+
+    const map = new Map({
+      target: 'map',
+      layers: [countryLayer],
+      view: new View({
+        projection: 'EPSG:4326',
+        center: [127.7669, 35.9078],
+        zoom: 1.35,
+        minZoom: 0.8,
+        maxZoom: 9,
+        extent: [-180, -90, 180, 90],
+        constrainOnlyCenter: false,
+        smoothExtentConstraint: true,
+        multiWorld: false,
+        enableRotation: false
+      }),
+      controls: [],
+      interactions: defaults({
+        altShiftDragRotate: false,
+        pinchRotate: false,
+        keyboard: false,
+        doubleClickZoom: false,
+        mouseWheelZoom: false,
+        dragPan: false,
+        pinchZoom: false
+      }).extend([
+        new DragPan({ kinetic: true }),
+        new MouseWheelZoom({
+          maxDelta: 1.2,
+          duration: 180,
+          timeout: 80,
+          useAnchor: true
+        }),
+        new PinchZoom({ duration: 180 })
+      ])
+    });
+
+    const mapElement = document.getElementById('map');
+    mapElement.style.background = SEA_COLOR;
+
+    vectorSource.once('featuresloaderror', () => {
+      console.error('국가 경계 데이터를 불러오지 못했습니다. 인터넷 연결 또는 데이터 URL을 확인하세요.');
+    });
+
+    // 화면 크기 변경 시 지도 갱신
+    window.addEventListener('resize', () => {
+      map.updateSize();
+    });
+  </script>
+</body>
+</html>
