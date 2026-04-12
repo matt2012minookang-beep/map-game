@@ -53,8 +53,8 @@
       pointer-events: none;
       user-select: none;
       paint-order: stroke;
-      stroke: rgba(245, 239, 224, 0.92);
-      stroke-width: 2.4px;
+      stroke: rgba(245, 239, 224, 0.95);
+      stroke-width: 2.6px;
       stroke-linejoin: round;
       vector-effect: non-scaling-stroke;
     }
@@ -110,7 +110,7 @@
 
     let scale = 1;
     let minScale = 1;
-    const maxScale = 20;
+    const maxScale = 60;
     let translateX = 0;
     let translateY = 0;
 
@@ -125,6 +125,43 @@
     let pinchCenter = null;
 
     const labelItems = [];
+    const regionNames = new Intl.DisplayNames(["ko"], { type: "region" });
+
+    const nameOverrides = {
+      XK: "코소보",
+      PS: "팔레스타인",
+      TW: "대만",
+      VA: "바티칸",
+      CZ: "체코",
+      SZ: "에스와티니",
+      TL: "동티모르",
+      MM: "미얀마",
+      LA: "라오스",
+      MD: "몰도바",
+      RU: "러시아",
+      KR: "대한민국",
+      KP: "조선민주주의인민공화국",
+      US: "미국",
+      GB: "영국",
+      AE: "아랍에미리트",
+      CD: "콩고 민주 공화국",
+      CG: "콩고 공화국",
+      CI: "코트디부아르",
+      SY: "시리아",
+      IR: "이란",
+      TZ: "탄자니아",
+      VN: "베트남",
+      BO: "볼리비아",
+      VE: "베네수엘라",
+      BN: "브루나이",
+      FM: "미크로네시아",
+      CV: "카보베르데",
+      ST: "상투메 프린시페",
+      GQ: "적도 기니",
+      CF: "중앙아프리카공화국",
+      DO: "도미니카 공화국",
+      SS: "남수단"
+    };
 
     function project(lon, lat) {
       const x = ((lon + 180) / 360) * WORLD_W;
@@ -269,23 +306,50 @@
       const len = (name || "").length;
 
       if (area > 12000 && width > 65 && height > 18) return 1.0;
-      if (area > 6000 && width > 45 && height > 14) return 1.3;
-      if (area > 2500 && width > 28 && height > 10) return 1.8;
-      if (area > 900 && width > 18 && height > 8) return 2.4;
+      if (area > 6000 && width > 45 && height > 14) return 1.25;
+      if (area > 2500 && width > 28 && height > 10) return 1.7;
+      if (area > 900 && width > 18 && height > 8) return 2.2;
       if (area > 300 && width > 10 && height > 6) return 3.0;
-      if (area > 120) return 4.2;
-      if (len <= 8) return 5.2;
-      return 6.2;
+      if (area > 120) return 4.3;
+      if (area > 45) return 6.2;
+      if (len <= 5) return 8.0;
+      if (len <= 10) return 10.0;
+      return 12.0;
     }
 
     function chooseFontSize(area, width, height, name) {
-      const estimated = Math.max(8, Math.min(24, Math.sqrt(area) * 0.16));
-      const widthLimited = Math.max(7, Math.min(estimated, width / Math.max(2.6, name.length * 0.58)));
-      const heightLimited = Math.max(7, Math.min(widthLimited, height * 0.75));
-      return Math.max(7, Math.min(24, heightLimited));
+      const estimated = Math.max(8, Math.min(26, Math.sqrt(area) * 0.16));
+      const widthLimited = Math.max(7, Math.min(estimated, width / Math.max(1.8, name.length * 0.55)));
+      const heightLimited = Math.max(7, Math.min(widthLimited, height * 0.78));
+      return Math.max(7, Math.min(26, heightLimited));
     }
 
-    function getCountryName(feature) {
+    function getCountryCode(feature) {
+      const p = feature.properties || {};
+      const candidates = [
+        p["ISO3166-1-Alpha-2"],
+        p.iso_a2,
+        p.ISO_A2,
+        p.ISO2,
+        p.iso2,
+        p["iso2"],
+        p["WB_A2"],
+        p["ADM0_A3_US"],
+        p["GU_A3"],
+        p["SU_A3"]
+      ];
+
+      for (const code of candidates) {
+        if (typeof code === "string") {
+          const c = code.trim().toUpperCase();
+          if (/^[A-Z]{2}$/.test(c)) return c;
+        }
+      }
+
+      return null;
+    }
+
+    function getEnglishCountryName(feature) {
       const p = feature.properties || {};
       return (
         p.ADMIN ||
@@ -298,6 +362,18 @@
         p.brk_name ||
         "이름없음"
       );
+    }
+
+    function getCountryNameKo(feature) {
+      const code = getCountryCode(feature);
+      if (code) {
+        if (nameOverrides[code]) return nameOverrides[code];
+        try {
+          const ko = regionNames.of(code);
+          if (ko && ko !== code) return ko;
+        } catch (e) {}
+      }
+      return getEnglishCountryName(feature);
     }
 
     function clampTranslate() {
@@ -325,10 +401,7 @@
 
     function setTransform() {
       clampTranslate();
-      world.setAttribute(
-        "transform",
-        `translate(${translateX} ${translateY}) scale(${scale})`
-      );
+      world.setAttribute("transform", `translate(${translateX} ${translateY}) scale(${scale})`);
       updateLabelsVisibility();
     }
 
@@ -368,7 +441,7 @@
 
     svg.addEventListener("wheel", (e) => {
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.18 : 1 / 1.18;
+      const factor = e.deltaY < 0 ? 1.22 : 1 / 1.22;
       zoomAt(e.clientX, e.clientY, factor);
     }, { passive: false });
 
@@ -476,7 +549,7 @@
           const labelPos = getLabelPlacement(geometry);
           if (!labelPos) continue;
 
-          const name = getCountryName(feature);
+          const name = getCountryNameKo(feature);
           const fontSize = chooseFontSize(labelPos.area, labelPos.width, labelPos.height, name);
           const minZoomForLabel = chooseLabelZoom(labelPos.area, labelPos.width, labelPos.height, name);
 
