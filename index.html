@@ -21,9 +21,9 @@
     #map {
       width: 100vw;
       height: 100vh;
-      background: #0b1f4d;
       position: relative;
       overflow: hidden;
+      background: #0b1f4d;
       cursor: grab;
     }
 
@@ -54,7 +54,7 @@
       user-select: none;
       paint-order: stroke;
       stroke: rgba(245, 239, 224, 0.96);
-      stroke-width: 2.4px;
+      stroke-width: 2.2px;
       stroke-linejoin: round;
       vector-effect: non-scaling-stroke;
     }
@@ -88,13 +88,10 @@
   <div id="map">
     <div id="loading" class="loading">지도를 불러오는 중...</div>
     <svg id="svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet">
-      <g id="viewport">
-        <rect x="-6000" y="-6000" width="12000" height="12000" fill="#0b1f4d"></rect>
-        <g id="world">
-          <rect x="0" y="0" width="1600" height="900" fill="#0b1f4d"></rect>
-          <g id="countries"></g>
-          <g id="labels"></g>
-        </g>
+      <g id="world">
+        <rect x="0" y="0" width="1600" height="900" fill="#0b1f4d"></rect>
+        <g id="countries"></g>
+        <g id="labels"></g>
       </g>
     </svg>
   </div>
@@ -113,7 +110,7 @@
 
     let scale = 1;
     let minScale = 1;
-    const maxScale = 120;
+    const maxScale = 140;
     let translateX = 0;
     let translateY = 0;
 
@@ -123,303 +120,277 @@
 
     let pinchStartDist = 0;
     let pinchStartScale = 1;
-    let pinchCenterWorld = null;
+    let pinchStartTX = 0;
+    let pinchStartTY = 0;
+    let pinchAnchor = null;
 
     const labelItems = [];
 
-    const COUNTRY_KO = {
-      "Afghanistan": "아프가니스탄",
-      "Albania": "알바니아",
-      "Algeria": "알제리",
-      "American Samoa": "미국령 사모아",
-      "Andorra": "안도라",
-      "Angola": "앙골라",
-      "Anguilla": "앵귈라",
-      "Antarctica": "남극",
-      "Antigua and Barbuda": "앤티가 바부다",
-      "Argentina": "아르헨티나",
-      "Armenia": "아르메니아",
-      "Aruba": "아루바",
-      "Australia": "오스트레일리아",
-      "Austria": "오스트리아",
-      "Azerbaijan": "아제르바이잔",
-      "Bahamas": "바하마",
-      "Bahrain": "바레인",
-      "Bangladesh": "방글라데시",
-      "Barbados": "바베이도스",
-      "Belarus": "벨라루스",
-      "Belgium": "벨기에",
-      "Belize": "벨리즈",
-      "Benin": "베냉",
-      "Bermuda": "버뮤다",
-      "Bhutan": "부탄",
-      "Bolivia": "볼리비아",
-      "Bosnia and Herzegovina": "보스니아 헤르체고비나",
-      "Botswana": "보츠와나",
-      "Brazil": "브라질",
-      "British Indian Ocean Territory": "영국령 인도양 지역",
-      "British Virgin Islands": "영국령 버진아일랜드",
-      "Brunei": "브루나이",
-      "Bulgaria": "불가리아",
-      "Burkina Faso": "부르키나파소",
-      "Burundi": "부룬디",
-      "Cambodia": "캄보디아",
-      "Cameroon": "카메룬",
-      "Canada": "캐나다",
-      "Cape Verde": "카보베르데",
-      "Cayman Islands": "케이맨 제도",
-      "Central African Republic": "중앙아프리카공화국",
-      "Chad": "차드",
-      "Chile": "칠레",
-      "China": "중국",
-      "Colombia": "콜롬비아",
-      "Comoros": "코모로",
-      "Congo": "콩고 공화국",
-      "Cook Islands": "쿡 제도",
-      "Costa Rica": "코스타리카",
-      "Croatia": "크로아티아",
-      "Cuba": "쿠바",
-      "Curacao": "퀴라소",
-      "Cyprus": "키프로스",
-      "Czechia": "체코",
-      "Czech Republic": "체코",
-      "Democratic Republic of the Congo": "콩고 민주 공화국",
-      "Denmark": "덴마크",
-      "Djibouti": "지부티",
-      "Dominica": "도미니카",
-      "Dominican Republic": "도미니카 공화국",
-      "Ecuador": "에콰도르",
-      "Egypt": "이집트",
-      "El Salvador": "엘살바도르",
-      "Equatorial Guinea": "적도 기니",
-      "Eritrea": "에리트레아",
-      "Estonia": "에스토니아",
-      "Eswatini": "에스와티니",
-      "Ethiopia": "에티오피아",
-      "Falkland Islands": "포클랜드 제도",
-      "Faroe Islands": "페로 제도",
-      "Fiji": "피지",
-      "Finland": "핀란드",
-      "France": "프랑스",
-      "French Guiana": "프랑스령 기아나",
-      "French Polynesia": "프랑스령 폴리네시아",
-      "Gabon": "가봉",
-      "Gambia": "감비아",
-      "Georgia": "조지아",
-      "Germany": "독일",
-      "Ghana": "가나",
-      "Gibraltar": "지브롤터",
-      "Greece": "그리스",
-      "Greenland": "그린란드",
-      "Grenada": "그레나다",
-      "Guadeloupe": "과들루프",
-      "Guam": "괌",
-      "Guatemala": "과테말라",
-      "Guernsey": "건지섬",
-      "Guinea": "기니",
-      "Guinea-Bissau": "기니비사우",
-      "Guyana": "가이아나",
-      "Haiti": "아이티",
-      "Honduras": "온두라스",
-      "Hungary": "헝가리",
-      "Iceland": "아이슬란드",
-      "India": "인도",
-      "Indonesia": "인도네시아",
-      "Iran": "이란",
-      "Iraq": "이라크",
-      "Ireland": "아일랜드",
-      "Isle of Man": "맨섬",
-      "Israel": "이스라엘",
-      "Italy": "이탈리아",
-      "Ivory Coast": "코트디부아르",
-      "Côte d'Ivoire": "코트디부아르",
-      "Jamaica": "자메이카",
-      "Japan": "일본",
-      "Jersey": "저지섬",
-      "Jordan": "요르단",
-      "Kazakhstan": "카자흐스탄",
-      "Kenya": "케냐",
-      "Kiribati": "키리바시",
-      "Kosovo": "코소보",
-      "Kuwait": "쿠웨이트",
-      "Kyrgyzstan": "키르기스스탄",
-      "Laos": "라오스",
-      "Latvia": "라트비아",
-      "Lebanon": "레바논",
-      "Lesotho": "레소토",
-      "Liberia": "라이베리아",
-      "Libya": "리비아",
-      "Liechtenstein": "리히텐슈타인",
-      "Lithuania": "리투아니아",
-      "Luxembourg": "룩셈부르크",
-      "Madagascar": "마다가스카르",
-      "Malawi": "말라위",
-      "Malaysia": "말레이시아",
-      "Maldives": "몰디브",
-      "Mali": "말리",
-      "Malta": "몰타",
-      "Marshall Islands": "마셜 제도",
-      "Martinique": "마르티니크",
-      "Mauritania": "모리타니",
-      "Mauritius": "모리셔스",
-      "Mayotte": "마요트",
-      "Mexico": "멕시코",
-      "Micronesia": "미크로네시아",
-      "Federated States of Micronesia": "미크로네시아",
-      "Moldova": "몰도바",
-      "Monaco": "모나코",
-      "Mongolia": "몽골",
-      "Montenegro": "몬테네그로",
-      "Montserrat": "몬트세랫",
-      "Morocco": "모로코",
-      "Mozambique": "모잠비크",
-      "Myanmar": "미얀마",
-      "Namibia": "나미비아",
-      "Nauru": "나우루",
-      "Nepal": "네팔",
-      "Netherlands": "네덜란드",
-      "New Caledonia": "누벨칼레도니",
-      "New Zealand": "뉴질랜드",
-      "Nicaragua": "니카라과",
-      "Niger": "니제르",
-      "Nigeria": "나이지리아",
-      "Niue": "니우에",
-      "North Korea": "조선민주주의인민공화국",
-      "North Macedonia": "북마케도니아",
-      "Northern Mariana Islands": "북마리아나 제도",
-      "Norway": "노르웨이",
-      "Oman": "오만",
-      "Pakistan": "파키스탄",
-      "Palau": "팔라우",
-      "Palestine": "팔레스타인",
-      "Panama": "파나마",
-      "Papua New Guinea": "파푸아뉴기니",
-      "Paraguay": "파라과이",
-      "Peru": "페루",
-      "Philippines": "필리핀",
-      "Poland": "폴란드",
-      "Portugal": "포르투갈",
-      "Puerto Rico": "푸에르토리코",
-      "Qatar": "카타르",
-      "Reunion": "레위니옹",
-      "Romania": "루마니아",
-      "Russia": "러시아",
-      "Russian Federation": "러시아",
-      "Rwanda": "르완다",
-      "Saint Barthelemy": "생바르텔레미",
-      "Saint Helena": "세인트헬레나",
-      "Saint Kitts and Nevis": "세인트키츠 네비스",
-      "Saint Lucia": "세인트루시아",
-      "Saint Martin": "생마르탱",
-      "Saint Pierre and Miquelon": "생피에르 미클롱",
-      "Saint Vincent and the Grenadines": "세인트빈센트 그레나딘",
-      "Samoa": "사모아",
-      "San Marino": "산마리노",
-      "Sao Tome and Principe": "상투메 프린시페",
-      "Saudi Arabia": "사우디아라비아",
-      "Senegal": "세네갈",
-      "Serbia": "세르비아",
-      "Seychelles": "세이셸",
-      "Sierra Leone": "시에라리온",
-      "Singapore": "싱가포르",
-      "Sint Maarten": "신트마르턴",
-      "Slovakia": "슬로바키아",
-      "Slovenia": "슬로베니아",
-      "Solomon Islands": "솔로몬 제도",
-      "Somalia": "소말리아",
-      "Somaliland": "소말릴란드",
-      "South Africa": "남아프리카공화국",
-      "South Korea": "대한민국",
-      "South Sudan": "남수단",
-      "Spain": "스페인",
-      "Sri Lanka": "스리랑카",
-      "Sudan": "수단",
-      "Suriname": "수리남",
-      "Svalbard and Jan Mayen": "스발바르 얀마옌",
-      "Sweden": "스웨덴",
-      "Switzerland": "스위스",
-      "Syria": "시리아",
-      "Taiwan": "대만",
-      "Taiwan, Province of China": "대만",
-      "Tajikistan": "타지키스탄",
-      "Tanzania": "탄자니아",
-      "Thailand": "태국",
-      "Timor-Leste": "동티모르",
-      "Togo": "토고",
-      "Tokelau": "토켈라우",
-      "Tonga": "통가",
-      "Trinidad and Tobago": "트리니다드 토바고",
-      "Tunisia": "튀니지",
-      "Turkey": "튀르키예",
-      "Türkiye": "튀르키예",
-      "Turkmenistan": "투르크메니스탄",
-      "Turks and Caicos Islands": "터크스 케이커스 제도",
-      "Tuvalu": "투발루",
-      "Uganda": "우간다",
-      "Ukraine": "우크라이나",
-      "United Arab Emirates": "아랍에미리트",
-      "United Kingdom": "영국",
-      "United States": "미국",
-      "United States of America": "미국",
-      "United States Virgin Islands": "미국령 버진아일랜드",
-      "Uruguay": "우루과이",
-      "Uzbekistan": "우즈베키스탄",
-      "Vanuatu": "바누아투",
-      "Vatican": "바티칸",
-      "Vatican City": "바티칸",
-      "Venezuela": "베네수엘라",
-      "Vietnam": "베트남",
-      "Wallis and Futuna": "왈리스 푸투나",
-      "Western Sahara": "서사하라",
-      "Yemen": "예멘",
-      "Zambia": "잠비아",
-      "Zimbabwe": "짐바브웨"
-    };
-
-    const CODE_KO = {
-      KR: "대한민국",
-      KP: "조선민주주의인민공화국",
-      US: "미국",
-      GB: "영국",
-      RU: "러시아",
-      TW: "대만",
-      SO: "소말리아",
-      XK: "코소보",
-      PS: "팔레스타인",
-      CD: "콩고 민주 공화국",
-      CG: "콩고 공화국",
-      CI: "코트디부아르",
-      CZ: "체코",
-      SZ: "에스와티니",
-      TL: "동티모르",
-      MM: "미얀마",
-      LA: "라오스",
-      MD: "몰도바",
-      VN: "베트남",
-      TZ: "탄자니아",
-      GQ: "적도 기니",
-      ST: "상투메 프린시페",
-      FM: "미크로네시아",
-      CV: "카보베르데",
-      VA: "바티칸",
-      AE: "아랍에미리트",
-      SS: "남수단",
-      BO: "볼리비아",
-      VE: "베네수엘라",
-      BN: "브루나이"
-    };
-
     const HIDE_CODES = new Set(["HK", "MO"]);
     const HIDE_NAMES = new Set([
-      "Hong Kong",
-      "Hong Kong SAR",
-      "Hong Kong S.A.R.",
-      "Macau",
-      "Macao",
-      "Macao SAR",
-      "Macao S.A.R",
-      "Macau S.A.R"
+      "Hong Kong", "Hong Kong SAR", "Hong Kong S.A.R.",
+      "Macau", "Macao", "Macao SAR", "Macao S.A.R", "Macau S.A.R"
     ]);
+
+    const nameByCode = {
+      AF: "아프가니스탄",
+      AL: "알바니아",
+      DZ: "알제리",
+      AS: "미국령 사모아",
+      AD: "안도라",
+      AO: "앙골라",
+      AI: "앵귈라",
+      AQ: "남극",
+      AG: "앤티가 바부다",
+      AR: "아르헨티나",
+      AM: "아르메니아",
+      AW: "아루바",
+      AU: "오스트레일리아",
+      AT: "오스트리아",
+      AZ: "아제르바이잔",
+      BS: "바하마",
+      BH: "바레인",
+      BD: "방글라데시",
+      BB: "바베이도스",
+      BY: "벨라루스",
+      BE: "벨기에",
+      BZ: "벨리즈",
+      BJ: "베냉",
+      BM: "버뮤다",
+      BT: "부탄",
+      BO: "볼리비아",
+      BA: "보스니아 헤르체고비나",
+      BW: "보츠와나",
+      BR: "브라질",
+      IO: "영국령 인도양 지역",
+      VG: "영국령 버진아일랜드",
+      BN: "브루나이",
+      BG: "불가리아",
+      BF: "부르키나파소",
+      BI: "부룬디",
+      KH: "캄보디아",
+      CM: "카메룬",
+      CA: "캐나다",
+      CV: "카보베르데",
+      KY: "케이맨 제도",
+      CF: "중앙아프리카공화국",
+      TD: "차드",
+      CL: "칠레",
+      CN: "중국",
+      CO: "콜롬비아",
+      KM: "코모로",
+      CG: "콩고 공화국",
+      CD: "콩고 민주 공화국",
+      CK: "쿡 제도",
+      CR: "코스타리카",
+      CI: "코트디부아르",
+      HR: "크로아티아",
+      CU: "쿠바",
+      CW: "퀴라소",
+      CY: "키프로스",
+      CZ: "체코",
+      DK: "덴마크",
+      DJ: "지부티",
+      DM: "도미니카",
+      DO: "도미니카 공화국",
+      EC: "에콰도르",
+      EG: "이집트",
+      SV: "엘살바도르",
+      GQ: "적도 기니",
+      ER: "에리트레아",
+      EE: "에스토니아",
+      SZ: "에스와티니",
+      ET: "에티오피아",
+      FK: "포클랜드 제도",
+      FO: "페로 제도",
+      FJ: "피지",
+      FI: "핀란드",
+      FR: "프랑스",
+      GF: "프랑스령 기아나",
+      PF: "프랑스령 폴리네시아",
+      GA: "가봉",
+      GM: "감비아",
+      GE: "조지아",
+      DE: "독일",
+      GH: "가나",
+      GI: "지브롤터",
+      GR: "그리스",
+      GL: "그린란드",
+      GD: "그레나다",
+      GP: "과들루프",
+      GU: "괌",
+      GT: "과테말라",
+      GG: "건지섬",
+      GN: "기니",
+      GW: "기니비사우",
+      GY: "가이아나",
+      HT: "아이티",
+      HN: "온두라스",
+      HU: "헝가리",
+      IS: "아이슬란드",
+      IN: "인도",
+      ID: "인도네시아",
+      IR: "이란",
+      IQ: "이라크",
+      IE: "아일랜드",
+      IM: "맨섬",
+      IL: "이스라엘",
+      IT: "이탈리아",
+      JM: "자메이카",
+      JP: "일본",
+      JE: "저지섬",
+      JO: "요르단",
+      KZ: "카자흐스탄",
+      KE: "케냐",
+      KI: "키리바시",
+      XK: "코소보",
+      KW: "쿠웨이트",
+      KG: "키르기스스탄",
+      LA: "라오스",
+      LV: "라트비아",
+      LB: "레바논",
+      LS: "레소토",
+      LR: "라이베리아",
+      LY: "리비아",
+      LI: "리히텐슈타인",
+      LT: "리투아니아",
+      LU: "룩셈부르크",
+      MG: "마다가스카르",
+      MW: "말라위",
+      MY: "말레이시아",
+      MV: "몰디브",
+      ML: "말리",
+      MT: "몰타",
+      MH: "마셜 제도",
+      MQ: "마르티니크",
+      MR: "모리타니",
+      MU: "모리셔스",
+      YT: "마요트",
+      MX: "멕시코",
+      FM: "미크로네시아",
+      MD: "몰도바",
+      MC: "모나코",
+      MN: "몽골",
+      ME: "몬테네그로",
+      MS: "몬트세랫",
+      MA: "모로코",
+      MZ: "모잠비크",
+      MM: "미얀마",
+      NA: "나미비아",
+      NR: "나우루",
+      NP: "네팔",
+      NL: "네덜란드",
+      NC: "누벨칼레도니",
+      NZ: "뉴질랜드",
+      NI: "니카라과",
+      NE: "니제르",
+      NG: "나이지리아",
+      NU: "니우에",
+      KP: "조선민주주의인민공화국",
+      MK: "북마케도니아",
+      MP: "북마리아나 제도",
+      NO: "노르웨이",
+      OM: "오만",
+      PK: "파키스탄",
+      PW: "팔라우",
+      PS: "팔레스타인",
+      PA: "파나마",
+      PG: "파푸아뉴기니",
+      PY: "파라과이",
+      PE: "페루",
+      PH: "필리핀",
+      PL: "폴란드",
+      PT: "포르투갈",
+      PR: "푸에르토리코",
+      QA: "카타르",
+      RE: "레위니옹",
+      RO: "루마니아",
+      RU: "러시아",
+      RW: "르완다",
+      BL: "생바르텔레미",
+      SH: "세인트헬레나",
+      KN: "세인트키츠 네비스",
+      LC: "세인트루시아",
+      MF: "생마르탱",
+      PM: "생피에르 미클롱",
+      VC: "세인트빈센트 그레나딘",
+      WS: "사모아",
+      SM: "산마리노",
+      ST: "상투메 프린시페",
+      SA: "사우디아라비아",
+      SN: "세네갈",
+      RS: "세르비아",
+      SC: "세이셸",
+      SL: "시에라리온",
+      SG: "싱가포르",
+      SX: "신트마르턴",
+      SK: "슬로바키아",
+      SI: "슬로베니아",
+      SB: "솔로몬 제도",
+      SO: "소말리아",
+      ZA: "남아프리카공화국",
+      KR: "대한민국",
+      SS: "남수단",
+      ES: "스페인",
+      LK: "스리랑카",
+      SD: "수단",
+      SR: "수리남",
+      SJ: "스발바르 얀마옌",
+      SE: "스웨덴",
+      CH: "스위스",
+      SY: "시리아",
+      TW: "대만",
+      TJ: "타지키스탄",
+      TZ: "탄자니아",
+      TH: "태국",
+      TL: "동티모르",
+      TG: "토고",
+      TK: "토켈라우",
+      TO: "통가",
+      TT: "트리니다드 토바고",
+      TN: "튀니지",
+      TR: "튀르키예",
+      TM: "투르크메니스탄",
+      TC: "터크스 케이커스 제도",
+      TV: "투발루",
+      UG: "우간다",
+      UA: "우크라이나",
+      AE: "아랍에미리트",
+      GB: "영국",
+      US: "미국",
+      VI: "미국령 버진아일랜드",
+      UY: "우루과이",
+      UZ: "우즈베키스탄",
+      VU: "바누아투",
+      VA: "바티칸",
+      VE: "베네수엘라",
+      VN: "베트남",
+      WF: "왈리스 푸투나",
+      EH: "서사하라",
+      YE: "예멘",
+      ZM: "잠비아",
+      ZW: "짐바브웨"
+    };
+
+    const nameByEnglish = {
+      "Somaliland": "소말릴란드",
+      "Taiwan": "대만",
+      "Taiwan, Province of China": "대만",
+      "Norway": "노르웨이",
+      "Russian Federation": "러시아",
+      "United States of America": "미국",
+      "Czechia": "체코",
+      "Côte d'Ivoire": "코트디부아르",
+      "Türkiye": "튀르키예",
+      "Turkey": "튀르키예",
+      "North Korea": "조선민주주의인민공화국",
+      "South Korea": "대한민국",
+      "Democratic Republic of the Congo": "콩고 민주 공화국",
+      "Congo": "콩고 공화국",
+      "Micronesia": "미크로네시아",
+      "Federated States of Micronesia": "미크로네시아",
+      "Cape Verde": "카보베르데"
+    };
 
     function project(lon, lat) {
       const x = ((lon + 180) / 360) * WORLD_W;
@@ -502,72 +473,118 @@
       return Math.abs(area) * 0.5;
     }
 
-    function getGeometryProjectedPieces(geometry) {
-      const out = [];
+    function polygonCentroid(points) {
+      let a = 0;
+      let cx = 0;
+      let cy = 0;
+      const n = points.length;
+
+      for (let i = 0; i < n; i++) {
+        const [x1, y1] = points[i];
+        const [x2, y2] = points[(i + 1) % n];
+        const f = x1 * y2 - x2 * y1;
+        a += f;
+        cx += (x1 + x2) * f;
+        cy += (y1 + y2) * f;
+      }
+
+      a *= 0.5;
+      if (Math.abs(a) < 1e-6) {
+        let sx = 0, sy = 0;
+        for (const [x, y] of points) {
+          sx += x;
+          sy += y;
+        }
+        return [sx / points.length, sy / points.length];
+      }
+
+      return [cx / (6 * a), cy / (6 * a)];
+    }
+
+    function pointInPolygon(point, polygon) {
+      const [px, py] = point;
+      let inside = false;
+
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const [xi, yi] = polygon[i];
+        const [xj, yj] = polygon[j];
+
+        const intersect =
+          ((yi > py) !== (yj > py)) &&
+          (px < (xj - xi) * (py - yi) / ((yj - yi) || 1e-9) + xi);
+
+        if (intersect) inside = !inside;
+      }
+
+      return inside;
+    }
+
+    function getProjectedPieces(geometry) {
+      const pieces = [];
 
       if (geometry.type === "Polygon") {
         for (const ring of geometry.coordinates) {
-          const pieces = splitRingAtDateline(ring);
-          for (const piece of pieces) {
-            out.push(piece.map(([lon, lat]) => project(lon, lat)));
+          for (const piece of splitRingAtDateline(ring)) {
+            pieces.push(piece.map(([lon, lat]) => project(lon, lat)));
           }
         }
       } else if (geometry.type === "MultiPolygon") {
         for (const polygon of geometry.coordinates) {
           for (const ring of polygon) {
-            const pieces = splitRingAtDateline(ring);
-            for (const piece of pieces) {
-              out.push(piece.map(([lon, lat]) => project(lon, lat)));
+            for (const piece of splitRingAtDateline(ring)) {
+              pieces.push(piece.map(([lon, lat]) => project(lon, lat)));
             }
           }
         }
       }
 
-      return out.filter(piece => piece.length >= 3);
+      return pieces.filter(p => p.length >= 3);
     }
 
-    function getLabelPlacement(geometry) {
-      const pieces = getGeometryProjectedPieces(geometry);
+    function getBestLabelPlacement(geometry) {
+      const pieces = getProjectedPieces(geometry);
       if (!pieces.length) return null;
 
-      let bestPiece = pieces[0];
-      let bestArea = polygonArea(bestPiece);
+      let best = null;
 
-      for (let i = 1; i < pieces.length; i++) {
-        const area = polygonArea(pieces[i]);
-        if (area > bestArea) {
-          bestArea = area;
-          bestPiece = pieces[i];
+      for (const piece of pieces) {
+        const area = polygonArea(piece);
+        if (!best || area > best.area) {
+          let [cx, cy] = polygonCentroid(piece);
+          if (!pointInPolygon([cx, cy], piece)) {
+            let sx = 0, sy = 0;
+            for (const [x, y] of piece) {
+              sx += x;
+              sy += y;
+            }
+            cx = sx / piece.length;
+            cy = sy / piece.length;
+          }
+
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          for (const [x, y] of piece) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+
+          best = {
+            x: cx,
+            y: cy,
+            area,
+            width: maxX - minX,
+            height: maxY - minY
+          };
         }
       }
 
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const [x, y] of bestPiece) {
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-      }
-
-      return {
-        x: (minX + maxX) / 2,
-        y: (minY + maxY) / 2,
-        width: maxX - minX,
-        height: maxY - minY,
-        area: bestArea
-      };
+      return best;
     }
 
     function getCountryCode(feature) {
       const p = feature.properties || {};
-      const candidates = [
-        p.ISO_A2,
-        p.iso_a2,
-        p["ISO3166-1-Alpha-2"],
-        p.ISO2,
-        p.iso2
-      ];
-
+      const candidates = [p.ISO_A2, p.iso_a2, p["ISO3166-1-Alpha-2"], p.ISO2, p.iso2];
       for (const code of candidates) {
         if (typeof code === "string") {
           const c = code.trim().toUpperCase();
@@ -580,35 +597,14 @@
     function getEnglishCountryName(feature) {
       const p = feature.properties || {};
       return (
-        p.NAME_KO ||
+        p.ADMIN ||
         p.NAME_LONG ||
         p.NAME ||
-        p.ADMIN ||
-        p.BRK_NAME ||
         p.SOVEREIGNT ||
+        p.BRK_NAME ||
         p.name ||
-        p.admin ||
         "이름없음"
       );
-    }
-
-    function cleanCountryName(name) {
-      return String(name)
-        .replace(/\s*특별행정구\s*/g, "")
-        .replace(/\s*S\.?A\.?R\.?\s*/gi, "")
-        .replace(/\s*SAR\s*/gi, "")
-        .replace(/\s{2,}/g, " ")
-        .trim();
-    }
-
-    function getCountryNameKo(feature) {
-      const code = getCountryCode(feature);
-      const en = getEnglishCountryName(feature);
-
-      if (code && CODE_KO[code]) return cleanCountryName(CODE_KO[code]);
-      if (COUNTRY_KO[en]) return cleanCountryName(COUNTRY_KO[en]);
-
-      return cleanCountryName(en);
     }
 
     function shouldHideFeature(feature) {
@@ -617,65 +613,83 @@
       return HIDE_CODES.has(code) || HIDE_NAMES.has(en);
     }
 
-    function chooseLabelZoom(area, width, height, name) {
-      const len = name.length;
+    function getCountryNameKo(feature) {
+      const code = getCountryCode(feature);
+      const en = getEnglishCountryName(feature);
+      const p = feature.properties || {};
 
-      if (area > 12000 && width > 65 && height > 18) return 1.0;
-      if (area > 6000 && width > 45 && height > 14) return 1.2;
-      if (area > 2500 && width > 28 && height > 10) return 1.6;
-      if (area > 900 && width > 18 && height > 8) return 2.1;
-      if (area > 300 && width > 10 && height > 6) return 3.0;
-      if (area > 120) return 4.3;
-      if (area > 45) return 6.2;
-      if (len <= 4) return 8.0;
-      if (len <= 8) return 10.0;
-      return 12.0;
+      if (code && nameByCode[code]) return nameByCode[code];
+      if (nameByEnglish[en]) return nameByEnglish[en];
+      if (typeof p.NAME_KO === "string" && p.NAME_KO.trim()) return p.NAME_KO.trim();
+
+      return en
+        .replace(/\s*Special Administrative Region\s*/gi, "")
+        .replace(/\s*S\.?A\.?R\.?\s*/gi, "")
+        .replace(/\s*SAR\s*/gi, "")
+        .trim();
     }
 
-    function splitNameLines(name) {
-      const parts = name.split(/\s+/).filter(Boolean);
-      if (parts.length <= 1) return [name];
-
-      if (parts.length === 2) return [parts[0], parts[1]];
-
-      if (parts.length === 3) return [
-        parts[0],
-        parts.slice(1).join(" ")
-      ];
+    function splitNameLines(name, maxCharsPerLine) {
+      const words = name.split(/\s+/).filter(Boolean);
+      if (words.length === 1) return [name];
 
       const lines = [];
       let current = "";
 
-      for (const part of parts) {
+      for (const word of words) {
         if (!current) {
-          current = part;
-        } else if ((current + " " + part).length <= 8) {
-          current += " " + part;
+          current = word;
+        } else if ((current + " " + word).length <= maxCharsPerLine) {
+          current += " " + word;
         } else {
           lines.push(current);
-          current = part;
+          current = word;
         }
       }
+
       if (current) lines.push(current);
-
-      if (lines.length > 3) {
-        return [
-          lines[0],
-          lines.slice(1, lines.length - 1).join(" "),
-          lines[lines.length - 1]
-        ];
-      }
-
       return lines;
     }
 
-    function chooseFontSize(area, width, height, name) {
-      const lines = splitNameLines(name);
-      const longest = lines.reduce((m, s) => Math.max(m, s.length), 1);
-      const est = Math.max(7, Math.min(24, Math.sqrt(area) * 0.16));
-      const widthFit = Math.max(6.5, Math.min(est, width / Math.max(1.8, longest * 0.62)));
-      const heightFit = Math.max(6.5, Math.min(widthFit, height / Math.max(1.15, lines.length * 0.82)));
-      return Math.max(6.5, Math.min(24, heightFit));
+    function fitLabelInsideCountry(name, width, height, area) {
+      let font = Math.max(6.5, Math.min(24, Math.sqrt(area) * 0.16));
+      let lines = [name];
+
+      for (let i = 0; i < 40; i++) {
+        const maxChars = name.length >= 10 ? 6 : name.length >= 7 ? 7 : 99;
+        lines = splitNameLines(name, maxChars);
+
+        const longest = lines.reduce((m, s) => Math.max(m, s.length), 1);
+        const labelWidth = longest * font * 0.62;
+        const labelHeight = lines.length * font * 0.90;
+
+        if (labelWidth <= width * 0.88 && labelHeight <= height * 0.82) {
+          return {
+            font,
+            lines,
+            textWidth: labelWidth,
+            textHeight: labelHeight
+          };
+        }
+
+        font -= 0.5;
+        if (font < 6.5) break;
+      }
+
+      return null;
+    }
+
+    function chooseLabelZoom(area, width, height, nameLength) {
+      if (area > 30000 && width > 120 && height > 32) return 1.0;
+      if (area > 15000 && width > 80 && height > 20) return 1.15;
+      if (area > 7000 && width > 50 && height > 14) return 1.45;
+      if (area > 2500 && width > 28 && height > 10) return 1.9;
+      if (area > 900 && width > 16 && height > 7) return 2.8;
+      if (area > 250) return 4.2;
+      if (area > 80) return 6.2;
+      if (nameLength <= 4) return 8.5;
+      if (nameLength <= 8) return 11;
+      return 14;
     }
 
     function createLabelElement(item) {
@@ -683,41 +697,18 @@
       text.setAttribute("class", "country-label");
       text.setAttribute("font-size", item.baseFontSize.toFixed(2));
 
-      const lineGap = item.baseFontSize * 0.96;
-      const startDy = -((item.lines.length - 1) * lineGap) / 2;
+      const lineGap = item.baseFontSize * 0.95;
+      const firstDy = -((item.lines.length - 1) * lineGap) / 2;
 
-      item.lines.forEach((line, i) => {
+      item.lines.forEach((line, idx) => {
         const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
         tspan.setAttribute("x", item.x.toFixed(2));
-        tspan.setAttribute("dy", i === 0 ? startDy.toFixed(2) : lineGap.toFixed(2));
+        tspan.setAttribute("dy", idx === 0 ? firstDy.toFixed(2) : lineGap.toFixed(2));
         tspan.textContent = line;
         text.appendChild(tspan);
       });
 
       return text;
-    }
-
-    function estimateLabelRectScreen(item, offsetXScreen, offsetYScreen) {
-      const cx = item.x * scale + translateX + offsetXScreen;
-      const cy = item.y * scale + translateY + offsetYScreen;
-      const width = item.textWidth * scale;
-      const height = item.textHeight * scale;
-
-      return {
-        left: cx - width / 2 - 3,
-        right: cx + width / 2 + 3,
-        top: cy - height / 2 - 2,
-        bottom: cy + height / 2 + 2
-      };
-    }
-
-    function rectsOverlap(a, b) {
-      return !(
-        a.right <= b.left ||
-        a.left >= b.right ||
-        a.bottom <= b.top ||
-        a.top >= b.bottom
-      );
     }
 
     function clampTranslate() {
@@ -743,19 +734,38 @@
       }
     }
 
-    function applyLabelLayout() {
-      const placed = [];
+    function rectsOverlap(a, b) {
+      return !(
+        a.right <= b.left ||
+        a.left >= b.right ||
+        a.bottom <= b.top ||
+        a.top >= b.bottom
+      );
+    }
 
+    function estimateLabelRectScreen(item, oxScreen, oyScreen) {
+      const cx = item.x * scale + translateX + oxScreen;
+      const cy = item.y * scale + translateY + oyScreen;
+      const w = item.textWidth * scale;
+      const h = item.textHeight * scale;
+      return {
+        left: cx - w / 2 - 4,
+        right: cx + w / 2 + 4,
+        top: cy - h / 2 - 3,
+        bottom: cy + h / 2 + 3
+      };
+    }
+
+    function applyLabelLayout() {
       for (const item of labelItems) {
         item.el.style.display = "none";
+        item.el.removeAttribute("transform");
       }
 
+      const shown = [];
       const ordered = [...labelItems]
         .filter(item => scale >= item.minZoom)
-        .sort((a, b) => {
-          if (a.priority !== b.priority) return b.priority - a.priority;
-          return a.name.length - b.name.length;
-        });
+        .sort((a, b) => b.priority - a.priority);
 
       for (const item of ordered) {
         const f = item.baseFontSize;
@@ -763,61 +773,56 @@
           [0, 0],
           [0, -f * 0.9],
           [0, f * 0.9],
-          [-f * 1.15, 0],
-          [f * 1.15, 0],
-          [-f * 1.0, -f * 0.9],
-          [f * 1.0, -f * 0.9],
-          [-f * 1.0, f * 0.9],
-          [f * 1.0, f * 0.9],
-          [0, -f * 1.7],
-          [0, f * 1.7]
+          [-f * 1.05, 0],
+          [f * 1.05, 0],
+          [-f * 0.95, -f * 0.85],
+          [f * 0.95, -f * 0.85],
+          [-f * 0.95, f * 0.85],
+          [f * 0.95, f * 0.85]
         ];
 
-        let chosen = null;
-        let chosenRect = null;
+        let picked = null;
+        let pickedRect = null;
 
         for (const [ox, oy] of tryOffsets) {
           const rect = estimateLabelRectScreen(item, ox * scale, oy * scale);
 
           if (
-            rect.right < -30 ||
-            rect.left > VIEW_W + 30 ||
-            rect.bottom < -30 ||
-            rect.top > VIEW_H + 30
+            rect.right < -20 || rect.left > VIEW_W + 20 ||
+            rect.bottom < -20 || rect.top > VIEW_H + 20
           ) {
             continue;
           }
 
-          let bad = false;
-          for (const p of placed) {
-            if (rectsOverlap(rect, p.rect)) {
-              bad = true;
+          let overlap = false;
+          for (const placed of shown) {
+            if (rectsOverlap(rect, placed.rect)) {
+              overlap = true;
               break;
             }
           }
 
-          if (!bad) {
-            chosen = [ox, oy];
-            chosenRect = rect;
+          if (!overlap) {
+            picked = [ox, oy];
+            pickedRect = rect;
             break;
           }
         }
 
-        if (!chosen) continue;
+        if (!picked) continue;
 
-        item.el.style.display = "";
-        const lineGap = item.baseFontSize * 0.96;
-        const startDy = -((item.lines.length - 1) * lineGap) / 2;
         const tspans = item.el.querySelectorAll("tspan");
+        const lineGap = item.baseFontSize * 0.95;
+        const firstDy = -((item.lines.length - 1) * lineGap) / 2;
 
-        tspans.forEach((tspan, i) => {
-          tspan.setAttribute("x", (item.x + chosen[0]).toFixed(2));
-          tspan.setAttribute("dy", i === 0 ? startDy.toFixed(2) : lineGap.toFixed(2));
+        tspans.forEach((tspan, idx) => {
+          tspan.setAttribute("x", (item.x + picked[0]).toFixed(2));
+          tspan.setAttribute("dy", idx === 0 ? firstDy.toFixed(2) : lineGap.toFixed(2));
         });
 
-        item.el.setAttribute("transform", `translate(0 ${chosen[1].toFixed(2)})`);
-
-        placed.push({ rect: chosenRect });
+        item.el.setAttribute("transform", `translate(0 ${picked[1].toFixed(2)})`);
+        item.el.style.display = "";
+        shown.push({ rect: pickedRect });
       }
     }
 
@@ -827,23 +832,19 @@
       applyLabelLayout();
     }
 
-    function zoomAtWorldPoint(worldX, worldY, factor) {
+    function zoomAt(clientX, clientY, factor) {
+      const rect = svg.getBoundingClientRect();
+      const px = ((clientX - rect.left) / rect.width) * VIEW_W;
+      const py = ((clientY - rect.top) / rect.height) * VIEW_H;
+
       const newScale = Math.max(minScale, Math.min(maxScale, scale * factor));
       const actualFactor = newScale / scale;
       if (actualFactor === 1) return;
 
-      translateX = worldX - (worldX - translateX) * actualFactor;
-      translateY = worldY - (worldY - translateY) * actualFactor;
+      translateX = px - (px - translateX) * actualFactor;
+      translateY = py - (py - translateY) * actualFactor;
       scale = newScale;
       setTransform();
-    }
-
-    function screenToWorld(clientX, clientY) {
-      const rect = svg.getBoundingClientRect();
-      return {
-        x: ((clientX - rect.left) / rect.width) * VIEW_W,
-        y: ((clientY - rect.top) / rect.height) * VIEW_H
-      };
     }
 
     function getTouchDistance(t1, t2) {
@@ -852,7 +853,7 @@
       return Math.hypot(dx, dy);
     }
 
-    function getTouchMidpoint(t1, t2) {
+    function getTouchCenter(t1, t2) {
       return {
         x: (t1.clientX + t2.clientX) / 2,
         y: (t1.clientY + t2.clientY) / 2
@@ -861,8 +862,7 @@
 
     svg.addEventListener("wheel", (e) => {
       e.preventDefault();
-      const worldPoint = screenToWorld(e.clientX, e.clientY);
-      zoomAtWorldPoint(worldPoint.x, worldPoint.y, e.deltaY < 0 ? 1.24 : 1 / 1.24);
+      zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.24 : 1 / 1.24);
     }, { passive: false });
 
     svg.addEventListener("pointerdown", (e) => {
@@ -878,13 +878,10 @@
       if (!isDragging) return;
 
       const rect = svg.getBoundingClientRect();
-      const dx = e.clientX - lastX;
-      const dy = e.clientY - lastY;
+      translateX += (e.clientX - lastX) * (VIEW_W / rect.width);
+      translateY += (e.clientY - lastY) * (VIEW_H / rect.height);
       lastX = e.clientX;
       lastY = e.clientY;
-
-      translateX += dx * (VIEW_W / rect.width);
-      translateY += dy * (VIEW_H / rect.height);
       setTransform();
     });
 
@@ -898,11 +895,17 @@
 
     svg.addEventListener("touchstart", (e) => {
       if (e.touches.length === 2) {
-        const mid = getTouchMidpoint(e.touches[0], e.touches[1]);
-        const worldMid = screenToWorld(mid.x, mid.y);
-        pinchCenterWorld = worldMid;
         pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
         pinchStartScale = scale;
+        pinchStartTX = translateX;
+        pinchStartTY = translateY;
+
+        const center = getTouchCenter(e.touches[0], e.touches[1]);
+        const rect = svg.getBoundingClientRect();
+        pinchAnchor = {
+          x: ((center.x - rect.left) / rect.width) * VIEW_W,
+          y: ((center.y - rect.top) / rect.height) * VIEW_H
+        };
       }
     }, { passive: false });
 
@@ -910,32 +913,31 @@
       if (e.touches.length === 2) {
         e.preventDefault();
 
-        const mid = getTouchMidpoint(e.touches[0], e.touches[1]);
-        const worldMid = screenToWorld(mid.x, mid.y);
         const dist = getTouchDistance(e.touches[0], e.touches[1]);
-
-        if (!pinchCenterWorld) {
-          pinchCenterWorld = worldMid;
-          pinchStartDist = dist;
-          pinchStartScale = scale;
-          return;
-        }
-
         const factor = dist / Math.max(1, pinchStartDist);
         const newScale = Math.max(minScale, Math.min(maxScale, pinchStartScale * factor));
-        const actualFactor = newScale / scale;
 
-        translateX = pinchCenterWorld.x - (pinchCenterWorld.x - translateX) * actualFactor;
-        translateY = pinchCenterWorld.y - (pinchCenterWorld.y - translateY) * actualFactor;
+        const center = getTouchCenter(e.touches[0], e.touches[1]);
+        const rect = svg.getBoundingClientRect();
+        const cx = ((center.x - rect.left) / rect.width) * VIEW_W;
+        const cy = ((center.y - rect.top) / rect.height) * VIEW_H;
+
+        if (pinchAnchor) {
+          const actualFactor = newScale / pinchStartScale;
+          translateX = pinchAnchor.x - (pinchAnchor.x - pinchStartTX) * actualFactor;
+          translateY = pinchAnchor.y - (pinchAnchor.y - pinchStartTY) * actualFactor;
+
+          translateX += (cx - pinchAnchor.x);
+          translateY += (cy - pinchAnchor.y);
+        }
+
         scale = newScale;
         setTransform();
       }
     }, { passive: false });
 
-    svg.addEventListener("touchend", (e) => {
-      if (e.touches.length < 2) {
-        pinchCenterWorld = null;
-      }
+    svg.addEventListener("touchend", () => {
+      pinchAnchor = null;
     });
 
     function centerOnKorea(initialScale) {
@@ -962,31 +964,30 @@
           path.setAttribute("class", "land");
           countriesGroup.appendChild(path);
 
-          const labelPos = getLabelPlacement(feature.geometry);
-          if (!labelPos) continue;
+          const placement = getBestLabelPlacement(feature.geometry);
+          if (!placement) continue;
 
           const name = getCountryNameKo(feature);
-          const lines = splitNameLines(name);
-          const fontSize = chooseFontSize(labelPos.area, labelPos.width, labelPos.height, name);
-          const minZoomForLabel = chooseLabelZoom(labelPos.area, labelPos.width, labelPos.height, name);
+          const fit = fitLabelInsideCountry(name, placement.width, placement.height, placement.area);
+          if (!fit) continue;
 
-          const textWidth = Math.max(
-            fontSize * 1.15,
-            Math.max(...lines.map(line => line.length), 1) * fontSize * 0.62
+          const minZoomForLabel = chooseLabelZoom(
+            placement.area,
+            placement.width,
+            placement.height,
+            name.length
           );
-          const textHeight = Math.max(fontSize * 1.12, lines.length * fontSize * 0.86);
 
           const item = {
             name,
-            lines,
-            x: labelPos.x,
-            y: labelPos.y,
-            area: labelPos.area,
+            lines: fit.lines,
+            x: placement.x,
+            y: placement.y,
+            baseFontSize: fit.font,
+            textWidth: fit.textWidth,
+            textHeight: fit.textHeight,
             minZoom: minZoomForLabel,
-            baseFontSize: fontSize,
-            textWidth,
-            textHeight,
-            priority: labelPos.area * 10 + Math.min(labelPos.width, 120) * 4 + Math.min(labelPos.height, 60) * 3
+            priority: placement.area * 10 + Math.min(placement.width, 180) * 4 + Math.min(placement.height, 80) * 3
           };
 
           item.el = createLabelElement(item);
