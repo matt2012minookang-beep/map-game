@@ -22,9 +22,9 @@
       width: 100vw;
       height: 100vh;
       background: #0b1f4d;
-      cursor: grab;
       position: relative;
       overflow: hidden;
+      cursor: grab;
     }
 
     #map:active {
@@ -41,7 +41,7 @@
     .land {
       fill: #e7d8b4;
       stroke: #4f4330;
-      stroke-width: 0.6;
+      stroke-width: 0.55;
       vector-effect: non-scaling-stroke;
     }
 
@@ -53,10 +53,14 @@
       pointer-events: none;
       user-select: none;
       paint-order: stroke;
-      stroke: rgba(245, 239, 224, 0.95);
-      stroke-width: 2.6px;
+      stroke: rgba(245, 239, 224, 0.96);
+      stroke-width: 2.4px;
       stroke-linejoin: round;
       vector-effect: non-scaling-stroke;
+    }
+
+    .country-label tspan {
+      dominant-baseline: middle;
     }
 
     .loading {
@@ -85,8 +89,7 @@
     <div id="loading" class="loading">지도를 불러오는 중...</div>
     <svg id="svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet">
       <g id="viewport">
-        <rect x="-5000" y="-5000" width="10000" height="10000" fill="#0b1f4d"></rect>
-
+        <rect x="-6000" y="-6000" width="12000" height="12000" fill="#0b1f4d"></rect>
         <g id="world">
           <rect x="0" y="0" width="1600" height="900" fill="#0b1f4d"></rect>
           <g id="countries"></g>
@@ -110,7 +113,7 @@
 
     let scale = 1;
     let minScale = 1;
-    const maxScale = 60;
+    const maxScale = 120;
     let translateX = 0;
     let translateY = 0;
 
@@ -120,48 +123,303 @@
 
     let pinchStartDist = 0;
     let pinchStartScale = 1;
-    let pinchStartTX = 0;
-    let pinchStartTY = 0;
-    let pinchCenter = null;
+    let pinchCenterWorld = null;
 
     const labelItems = [];
-    const regionNames = new Intl.DisplayNames(["ko"], { type: "region" });
 
-    const nameOverrides = {
+    const COUNTRY_KO = {
+      "Afghanistan": "아프가니스탄",
+      "Albania": "알바니아",
+      "Algeria": "알제리",
+      "American Samoa": "미국령 사모아",
+      "Andorra": "안도라",
+      "Angola": "앙골라",
+      "Anguilla": "앵귈라",
+      "Antarctica": "남극",
+      "Antigua and Barbuda": "앤티가 바부다",
+      "Argentina": "아르헨티나",
+      "Armenia": "아르메니아",
+      "Aruba": "아루바",
+      "Australia": "오스트레일리아",
+      "Austria": "오스트리아",
+      "Azerbaijan": "아제르바이잔",
+      "Bahamas": "바하마",
+      "Bahrain": "바레인",
+      "Bangladesh": "방글라데시",
+      "Barbados": "바베이도스",
+      "Belarus": "벨라루스",
+      "Belgium": "벨기에",
+      "Belize": "벨리즈",
+      "Benin": "베냉",
+      "Bermuda": "버뮤다",
+      "Bhutan": "부탄",
+      "Bolivia": "볼리비아",
+      "Bosnia and Herzegovina": "보스니아 헤르체고비나",
+      "Botswana": "보츠와나",
+      "Brazil": "브라질",
+      "British Indian Ocean Territory": "영국령 인도양 지역",
+      "British Virgin Islands": "영국령 버진아일랜드",
+      "Brunei": "브루나이",
+      "Bulgaria": "불가리아",
+      "Burkina Faso": "부르키나파소",
+      "Burundi": "부룬디",
+      "Cambodia": "캄보디아",
+      "Cameroon": "카메룬",
+      "Canada": "캐나다",
+      "Cape Verde": "카보베르데",
+      "Cayman Islands": "케이맨 제도",
+      "Central African Republic": "중앙아프리카공화국",
+      "Chad": "차드",
+      "Chile": "칠레",
+      "China": "중국",
+      "Colombia": "콜롬비아",
+      "Comoros": "코모로",
+      "Congo": "콩고 공화국",
+      "Cook Islands": "쿡 제도",
+      "Costa Rica": "코스타리카",
+      "Croatia": "크로아티아",
+      "Cuba": "쿠바",
+      "Curacao": "퀴라소",
+      "Cyprus": "키프로스",
+      "Czechia": "체코",
+      "Czech Republic": "체코",
+      "Democratic Republic of the Congo": "콩고 민주 공화국",
+      "Denmark": "덴마크",
+      "Djibouti": "지부티",
+      "Dominica": "도미니카",
+      "Dominican Republic": "도미니카 공화국",
+      "Ecuador": "에콰도르",
+      "Egypt": "이집트",
+      "El Salvador": "엘살바도르",
+      "Equatorial Guinea": "적도 기니",
+      "Eritrea": "에리트레아",
+      "Estonia": "에스토니아",
+      "Eswatini": "에스와티니",
+      "Ethiopia": "에티오피아",
+      "Falkland Islands": "포클랜드 제도",
+      "Faroe Islands": "페로 제도",
+      "Fiji": "피지",
+      "Finland": "핀란드",
+      "France": "프랑스",
+      "French Guiana": "프랑스령 기아나",
+      "French Polynesia": "프랑스령 폴리네시아",
+      "Gabon": "가봉",
+      "Gambia": "감비아",
+      "Georgia": "조지아",
+      "Germany": "독일",
+      "Ghana": "가나",
+      "Gibraltar": "지브롤터",
+      "Greece": "그리스",
+      "Greenland": "그린란드",
+      "Grenada": "그레나다",
+      "Guadeloupe": "과들루프",
+      "Guam": "괌",
+      "Guatemala": "과테말라",
+      "Guernsey": "건지섬",
+      "Guinea": "기니",
+      "Guinea-Bissau": "기니비사우",
+      "Guyana": "가이아나",
+      "Haiti": "아이티",
+      "Honduras": "온두라스",
+      "Hungary": "헝가리",
+      "Iceland": "아이슬란드",
+      "India": "인도",
+      "Indonesia": "인도네시아",
+      "Iran": "이란",
+      "Iraq": "이라크",
+      "Ireland": "아일랜드",
+      "Isle of Man": "맨섬",
+      "Israel": "이스라엘",
+      "Italy": "이탈리아",
+      "Ivory Coast": "코트디부아르",
+      "Côte d'Ivoire": "코트디부아르",
+      "Jamaica": "자메이카",
+      "Japan": "일본",
+      "Jersey": "저지섬",
+      "Jordan": "요르단",
+      "Kazakhstan": "카자흐스탄",
+      "Kenya": "케냐",
+      "Kiribati": "키리바시",
+      "Kosovo": "코소보",
+      "Kuwait": "쿠웨이트",
+      "Kyrgyzstan": "키르기스스탄",
+      "Laos": "라오스",
+      "Latvia": "라트비아",
+      "Lebanon": "레바논",
+      "Lesotho": "레소토",
+      "Liberia": "라이베리아",
+      "Libya": "리비아",
+      "Liechtenstein": "리히텐슈타인",
+      "Lithuania": "리투아니아",
+      "Luxembourg": "룩셈부르크",
+      "Madagascar": "마다가스카르",
+      "Malawi": "말라위",
+      "Malaysia": "말레이시아",
+      "Maldives": "몰디브",
+      "Mali": "말리",
+      "Malta": "몰타",
+      "Marshall Islands": "마셜 제도",
+      "Martinique": "마르티니크",
+      "Mauritania": "모리타니",
+      "Mauritius": "모리셔스",
+      "Mayotte": "마요트",
+      "Mexico": "멕시코",
+      "Micronesia": "미크로네시아",
+      "Federated States of Micronesia": "미크로네시아",
+      "Moldova": "몰도바",
+      "Monaco": "모나코",
+      "Mongolia": "몽골",
+      "Montenegro": "몬테네그로",
+      "Montserrat": "몬트세랫",
+      "Morocco": "모로코",
+      "Mozambique": "모잠비크",
+      "Myanmar": "미얀마",
+      "Namibia": "나미비아",
+      "Nauru": "나우루",
+      "Nepal": "네팔",
+      "Netherlands": "네덜란드",
+      "New Caledonia": "누벨칼레도니",
+      "New Zealand": "뉴질랜드",
+      "Nicaragua": "니카라과",
+      "Niger": "니제르",
+      "Nigeria": "나이지리아",
+      "Niue": "니우에",
+      "North Korea": "조선민주주의인민공화국",
+      "North Macedonia": "북마케도니아",
+      "Northern Mariana Islands": "북마리아나 제도",
+      "Norway": "노르웨이",
+      "Oman": "오만",
+      "Pakistan": "파키스탄",
+      "Palau": "팔라우",
+      "Palestine": "팔레스타인",
+      "Panama": "파나마",
+      "Papua New Guinea": "파푸아뉴기니",
+      "Paraguay": "파라과이",
+      "Peru": "페루",
+      "Philippines": "필리핀",
+      "Poland": "폴란드",
+      "Portugal": "포르투갈",
+      "Puerto Rico": "푸에르토리코",
+      "Qatar": "카타르",
+      "Reunion": "레위니옹",
+      "Romania": "루마니아",
+      "Russia": "러시아",
+      "Russian Federation": "러시아",
+      "Rwanda": "르완다",
+      "Saint Barthelemy": "생바르텔레미",
+      "Saint Helena": "세인트헬레나",
+      "Saint Kitts and Nevis": "세인트키츠 네비스",
+      "Saint Lucia": "세인트루시아",
+      "Saint Martin": "생마르탱",
+      "Saint Pierre and Miquelon": "생피에르 미클롱",
+      "Saint Vincent and the Grenadines": "세인트빈센트 그레나딘",
+      "Samoa": "사모아",
+      "San Marino": "산마리노",
+      "Sao Tome and Principe": "상투메 프린시페",
+      "Saudi Arabia": "사우디아라비아",
+      "Senegal": "세네갈",
+      "Serbia": "세르비아",
+      "Seychelles": "세이셸",
+      "Sierra Leone": "시에라리온",
+      "Singapore": "싱가포르",
+      "Sint Maarten": "신트마르턴",
+      "Slovakia": "슬로바키아",
+      "Slovenia": "슬로베니아",
+      "Solomon Islands": "솔로몬 제도",
+      "Somalia": "소말리아",
+      "Somaliland": "소말릴란드",
+      "South Africa": "남아프리카공화국",
+      "South Korea": "대한민국",
+      "South Sudan": "남수단",
+      "Spain": "스페인",
+      "Sri Lanka": "스리랑카",
+      "Sudan": "수단",
+      "Suriname": "수리남",
+      "Svalbard and Jan Mayen": "스발바르 얀마옌",
+      "Sweden": "스웨덴",
+      "Switzerland": "스위스",
+      "Syria": "시리아",
+      "Taiwan": "대만",
+      "Taiwan, Province of China": "대만",
+      "Tajikistan": "타지키스탄",
+      "Tanzania": "탄자니아",
+      "Thailand": "태국",
+      "Timor-Leste": "동티모르",
+      "Togo": "토고",
+      "Tokelau": "토켈라우",
+      "Tonga": "통가",
+      "Trinidad and Tobago": "트리니다드 토바고",
+      "Tunisia": "튀니지",
+      "Turkey": "튀르키예",
+      "Türkiye": "튀르키예",
+      "Turkmenistan": "투르크메니스탄",
+      "Turks and Caicos Islands": "터크스 케이커스 제도",
+      "Tuvalu": "투발루",
+      "Uganda": "우간다",
+      "Ukraine": "우크라이나",
+      "United Arab Emirates": "아랍에미리트",
+      "United Kingdom": "영국",
+      "United States": "미국",
+      "United States of America": "미국",
+      "United States Virgin Islands": "미국령 버진아일랜드",
+      "Uruguay": "우루과이",
+      "Uzbekistan": "우즈베키스탄",
+      "Vanuatu": "바누아투",
+      "Vatican": "바티칸",
+      "Vatican City": "바티칸",
+      "Venezuela": "베네수엘라",
+      "Vietnam": "베트남",
+      "Wallis and Futuna": "왈리스 푸투나",
+      "Western Sahara": "서사하라",
+      "Yemen": "예멘",
+      "Zambia": "잠비아",
+      "Zimbabwe": "짐바브웨"
+    };
+
+    const CODE_KO = {
+      KR: "대한민국",
+      KP: "조선민주주의인민공화국",
+      US: "미국",
+      GB: "영국",
+      RU: "러시아",
+      TW: "대만",
+      SO: "소말리아",
       XK: "코소보",
       PS: "팔레스타인",
-      TW: "대만",
-      VA: "바티칸",
+      CD: "콩고 민주 공화국",
+      CG: "콩고 공화국",
+      CI: "코트디부아르",
       CZ: "체코",
       SZ: "에스와티니",
       TL: "동티모르",
       MM: "미얀마",
       LA: "라오스",
       MD: "몰도바",
-      RU: "러시아",
-      KR: "대한민국",
-      KP: "조선민주주의인민공화국",
-      US: "미국",
-      GB: "영국",
-      AE: "아랍에미리트",
-      CD: "콩고 민주 공화국",
-      CG: "콩고 공화국",
-      CI: "코트디부아르",
-      SY: "시리아",
-      IR: "이란",
-      TZ: "탄자니아",
       VN: "베트남",
-      BO: "볼리비아",
-      VE: "베네수엘라",
-      BN: "브루나이",
+      TZ: "탄자니아",
+      GQ: "적도 기니",
+      ST: "상투메 프린시페",
       FM: "미크로네시아",
       CV: "카보베르데",
-      ST: "상투메 프린시페",
-      GQ: "적도 기니",
-      CF: "중앙아프리카공화국",
-      DO: "도미니카 공화국",
-      SS: "남수단"
+      VA: "바티칸",
+      AE: "아랍에미리트",
+      SS: "남수단",
+      BO: "볼리비아",
+      VE: "베네수엘라",
+      BN: "브루나이"
     };
+
+    const HIDE_CODES = new Set(["HK", "MO"]);
+    const HIDE_NAMES = new Set([
+      "Hong Kong",
+      "Hong Kong SAR",
+      "Hong Kong S.A.R.",
+      "Macau",
+      "Macao",
+      "Macao SAR",
+      "Macao S.A.R",
+      "Macau S.A.R"
+    ]);
 
     function project(lon, lat) {
       const x = ((lon + 180) / 360) * WORLD_W;
@@ -185,7 +443,6 @@
       for (let i = 1; i < ring.length; i++) {
         const prev = ring[i - 1];
         const curr = ring[i];
-
         const prevLon = normalizeLon180(prev[0]);
         const currLon = normalizeLon180(curr[0]);
         const jump = Math.abs(currLon - prevLon);
@@ -204,7 +461,6 @@
 
     function buildPathFromRing(ring) {
       if (!ring || !ring.length) return "";
-
       let d = "";
       for (let i = 0; i < ring.length; i++) {
         const [lon, lat] = ring[i];
@@ -302,41 +558,14 @@
       };
     }
 
-    function chooseLabelZoom(area, width, height, name) {
-      const len = (name || "").length;
-
-      if (area > 12000 && width > 65 && height > 18) return 1.0;
-      if (area > 6000 && width > 45 && height > 14) return 1.25;
-      if (area > 2500 && width > 28 && height > 10) return 1.7;
-      if (area > 900 && width > 18 && height > 8) return 2.2;
-      if (area > 300 && width > 10 && height > 6) return 3.0;
-      if (area > 120) return 4.3;
-      if (area > 45) return 6.2;
-      if (len <= 5) return 8.0;
-      if (len <= 10) return 10.0;
-      return 12.0;
-    }
-
-    function chooseFontSize(area, width, height, name) {
-      const estimated = Math.max(8, Math.min(26, Math.sqrt(area) * 0.16));
-      const widthLimited = Math.max(7, Math.min(estimated, width / Math.max(1.8, name.length * 0.55)));
-      const heightLimited = Math.max(7, Math.min(widthLimited, height * 0.78));
-      return Math.max(7, Math.min(26, heightLimited));
-    }
-
     function getCountryCode(feature) {
       const p = feature.properties || {};
       const candidates = [
-        p["ISO3166-1-Alpha-2"],
-        p.iso_a2,
         p.ISO_A2,
+        p.iso_a2,
+        p["ISO3166-1-Alpha-2"],
         p.ISO2,
-        p.iso2,
-        p["iso2"],
-        p["WB_A2"],
-        p["ADM0_A3_US"],
-        p["GU_A3"],
-        p["SU_A3"]
+        p.iso2
       ];
 
       for (const code of candidates) {
@@ -345,35 +574,150 @@
           if (/^[A-Z]{2}$/.test(c)) return c;
         }
       }
-
       return null;
     }
 
     function getEnglishCountryName(feature) {
       const p = feature.properties || {};
       return (
-        p.ADMIN ||
-        p.admin ||
+        p.NAME_KO ||
+        p.NAME_LONG ||
         p.NAME ||
-        p.name ||
-        p.SOVEREIGNT ||
-        p.sovereignt ||
+        p.ADMIN ||
         p.BRK_NAME ||
-        p.brk_name ||
+        p.SOVEREIGNT ||
+        p.name ||
+        p.admin ||
         "이름없음"
       );
     }
 
+    function cleanCountryName(name) {
+      return String(name)
+        .replace(/\s*특별행정구\s*/g, "")
+        .replace(/\s*S\.?A\.?R\.?\s*/gi, "")
+        .replace(/\s*SAR\s*/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+    }
+
     function getCountryNameKo(feature) {
       const code = getCountryCode(feature);
-      if (code) {
-        if (nameOverrides[code]) return nameOverrides[code];
-        try {
-          const ko = regionNames.of(code);
-          if (ko && ko !== code) return ko;
-        } catch (e) {}
+      const en = getEnglishCountryName(feature);
+
+      if (code && CODE_KO[code]) return cleanCountryName(CODE_KO[code]);
+      if (COUNTRY_KO[en]) return cleanCountryName(COUNTRY_KO[en]);
+
+      return cleanCountryName(en);
+    }
+
+    function shouldHideFeature(feature) {
+      const code = getCountryCode(feature);
+      const en = getEnglishCountryName(feature);
+      return HIDE_CODES.has(code) || HIDE_NAMES.has(en);
+    }
+
+    function chooseLabelZoom(area, width, height, name) {
+      const len = name.length;
+
+      if (area > 12000 && width > 65 && height > 18) return 1.0;
+      if (area > 6000 && width > 45 && height > 14) return 1.2;
+      if (area > 2500 && width > 28 && height > 10) return 1.6;
+      if (area > 900 && width > 18 && height > 8) return 2.1;
+      if (area > 300 && width > 10 && height > 6) return 3.0;
+      if (area > 120) return 4.3;
+      if (area > 45) return 6.2;
+      if (len <= 4) return 8.0;
+      if (len <= 8) return 10.0;
+      return 12.0;
+    }
+
+    function splitNameLines(name) {
+      const parts = name.split(/\s+/).filter(Boolean);
+      if (parts.length <= 1) return [name];
+
+      if (parts.length === 2) return [parts[0], parts[1]];
+
+      if (parts.length === 3) return [
+        parts[0],
+        parts.slice(1).join(" ")
+      ];
+
+      const lines = [];
+      let current = "";
+
+      for (const part of parts) {
+        if (!current) {
+          current = part;
+        } else if ((current + " " + part).length <= 8) {
+          current += " " + part;
+        } else {
+          lines.push(current);
+          current = part;
+        }
       }
-      return getEnglishCountryName(feature);
+      if (current) lines.push(current);
+
+      if (lines.length > 3) {
+        return [
+          lines[0],
+          lines.slice(1, lines.length - 1).join(" "),
+          lines[lines.length - 1]
+        ];
+      }
+
+      return lines;
+    }
+
+    function chooseFontSize(area, width, height, name) {
+      const lines = splitNameLines(name);
+      const longest = lines.reduce((m, s) => Math.max(m, s.length), 1);
+      const est = Math.max(7, Math.min(24, Math.sqrt(area) * 0.16));
+      const widthFit = Math.max(6.5, Math.min(est, width / Math.max(1.8, longest * 0.62)));
+      const heightFit = Math.max(6.5, Math.min(widthFit, height / Math.max(1.15, lines.length * 0.82)));
+      return Math.max(6.5, Math.min(24, heightFit));
+    }
+
+    function createLabelElement(item) {
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("class", "country-label");
+      text.setAttribute("font-size", item.baseFontSize.toFixed(2));
+
+      const lineGap = item.baseFontSize * 0.96;
+      const startDy = -((item.lines.length - 1) * lineGap) / 2;
+
+      item.lines.forEach((line, i) => {
+        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+        tspan.setAttribute("x", item.x.toFixed(2));
+        tspan.setAttribute("dy", i === 0 ? startDy.toFixed(2) : lineGap.toFixed(2));
+        tspan.textContent = line;
+        text.appendChild(tspan);
+      });
+
+      return text;
+    }
+
+    function estimateLabelRectScreen(item, offsetXScreen, offsetYScreen) {
+      const cx = item.x * scale + translateX + offsetXScreen;
+      const cy = item.y * scale + translateY + offsetYScreen;
+      const width = item.textWidth * scale;
+      const height = item.textHeight * scale;
+
+      return {
+        left: cx - width / 2 - 3,
+        right: cx + width / 2 + 3,
+        top: cy - height / 2 - 2,
+        bottom: cy + height / 2 + 2
+      };
+    }
+
+    function rectsOverlap(a, b) {
+      return !(
+        a.right <= b.left ||
+        a.left >= b.right ||
+        a.bottom <= b.top ||
+        a.top >= b.bottom
+      );
     }
 
     function clampTranslate() {
@@ -399,31 +743,12 @@
       }
     }
 
-    function rectsOverlap(a, b) {
-      return !(
-        a.right <= b.left ||
-        a.left >= b.right ||
-        a.bottom <= b.top ||
-        a.top >= b.bottom
-      );
-    }
-
-    function estimateLabelRectScreen(item, offsetXScreen, offsetYScreen) {
-      const cx = item.x * scale + translateX + offsetXScreen;
-      const cy = item.y * scale + translateY + offsetYScreen;
-      const width = item.textWidth * scale;
-      const height = item.textHeight * scale;
-
-      return {
-        left: cx - width / 2 - 3,
-        right: cx + width / 2 + 3,
-        top: cy - height / 2 - 2,
-        bottom: cy + height / 2 + 2
-      };
-    }
-
     function applyLabelLayout() {
       const placed = [];
+
+      for (const item of labelItems) {
+        item.el.style.display = "none";
+      }
 
       const ordered = [...labelItems]
         .filter(item => scale >= item.minZoom)
@@ -432,24 +757,20 @@
           return a.name.length - b.name.length;
         });
 
-      for (const item of labelItems) {
-        item.el.style.display = "none";
-      }
-
       for (const item of ordered) {
-        const fontSize = item.baseFontSize;
+        const f = item.baseFontSize;
         const tryOffsets = [
           [0, 0],
-          [0, -fontSize * 1.0],
-          [0, fontSize * 1.0],
-          [-fontSize * 1.2, 0],
-          [fontSize * 1.2, 0],
-          [-fontSize * 1.0, -fontSize * 0.9],
-          [fontSize * 1.0, -fontSize * 0.9],
-          [-fontSize * 1.0, fontSize * 0.9],
-          [fontSize * 1.0, fontSize * 0.9],
-          [0, -fontSize * 1.8],
-          [0, fontSize * 1.8]
+          [0, -f * 0.9],
+          [0, f * 0.9],
+          [-f * 1.15, 0],
+          [f * 1.15, 0],
+          [-f * 1.0, -f * 0.9],
+          [f * 1.0, -f * 0.9],
+          [-f * 1.0, f * 0.9],
+          [f * 1.0, f * 0.9],
+          [0, -f * 1.7],
+          [0, f * 1.7]
         ];
 
         let chosen = null;
@@ -459,23 +780,23 @@
           const rect = estimateLabelRectScreen(item, ox * scale, oy * scale);
 
           if (
-            rect.right < -20 ||
-            rect.left > VIEW_W + 20 ||
-            rect.bottom < -20 ||
-            rect.top > VIEW_H + 20
+            rect.right < -30 ||
+            rect.left > VIEW_W + 30 ||
+            rect.bottom < -30 ||
+            rect.top > VIEW_H + 30
           ) {
             continue;
           }
 
-          let collides = false;
+          let bad = false;
           for (const p of placed) {
             if (rectsOverlap(rect, p.rect)) {
-              collides = true;
+              bad = true;
               break;
             }
           }
 
-          if (!collides) {
+          if (!bad) {
             chosen = [ox, oy];
             chosenRect = rect;
             break;
@@ -484,13 +805,19 @@
 
         if (!chosen) continue;
 
-        item.el.setAttribute("x", (item.x + chosen[0]).toFixed(2));
-        item.el.setAttribute("y", (item.y + chosen[1]).toFixed(2));
         item.el.style.display = "";
+        const lineGap = item.baseFontSize * 0.96;
+        const startDy = -((item.lines.length - 1) * lineGap) / 2;
+        const tspans = item.el.querySelectorAll("tspan");
 
-        placed.push({
-          rect: chosenRect
+        tspans.forEach((tspan, i) => {
+          tspan.setAttribute("x", (item.x + chosen[0]).toFixed(2));
+          tspan.setAttribute("dy", i === 0 ? startDy.toFixed(2) : lineGap.toFixed(2));
         });
+
+        item.el.setAttribute("transform", `translate(0 ${chosen[1].toFixed(2)})`);
+
+        placed.push({ rect: chosenRect });
       }
     }
 
@@ -500,19 +827,23 @@
       applyLabelLayout();
     }
 
-    function zoomAt(clientX, clientY, factor) {
-      const rect = svg.getBoundingClientRect();
-      const px = ((clientX - rect.left) / rect.width) * VIEW_W;
-      const py = ((clientY - rect.top) / rect.height) * VIEW_H;
-
+    function zoomAtWorldPoint(worldX, worldY, factor) {
       const newScale = Math.max(minScale, Math.min(maxScale, scale * factor));
       const actualFactor = newScale / scale;
       if (actualFactor === 1) return;
 
-      translateX = px - (px - translateX) * actualFactor;
-      translateY = py - (py - translateY) * actualFactor;
+      translateX = worldX - (worldX - translateX) * actualFactor;
+      translateY = worldY - (worldY - translateY) * actualFactor;
       scale = newScale;
       setTransform();
+    }
+
+    function screenToWorld(clientX, clientY) {
+      const rect = svg.getBoundingClientRect();
+      return {
+        x: ((clientX - rect.left) / rect.width) * VIEW_W,
+        y: ((clientY - rect.top) / rect.height) * VIEW_H
+      };
     }
 
     function getTouchDistance(t1, t2) {
@@ -521,7 +852,7 @@
       return Math.hypot(dx, dy);
     }
 
-    function getTouchCenter(t1, t2) {
+    function getTouchMidpoint(t1, t2) {
       return {
         x: (t1.clientX + t2.clientX) / 2,
         y: (t1.clientY + t2.clientY) / 2
@@ -530,8 +861,8 @@
 
     svg.addEventListener("wheel", (e) => {
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.22 : 1 / 1.22;
-      zoomAt(e.clientX, e.clientY, factor);
+      const worldPoint = screenToWorld(e.clientX, e.clientY);
+      zoomAtWorldPoint(worldPoint.x, worldPoint.y, e.deltaY < 0 ? 1.24 : 1 / 1.24);
     }, { passive: false });
 
     svg.addEventListener("pointerdown", (e) => {
@@ -549,7 +880,6 @@
       const rect = svg.getBoundingClientRect();
       const dx = e.clientX - lastX;
       const dy = e.clientY - lastY;
-
       lastX = e.clientX;
       lastY = e.clientY;
 
@@ -568,11 +898,11 @@
 
     svg.addEventListener("touchstart", (e) => {
       if (e.touches.length === 2) {
+        const mid = getTouchMidpoint(e.touches[0], e.touches[1]);
+        const worldMid = screenToWorld(mid.x, mid.y);
+        pinchCenterWorld = worldMid;
         pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
         pinchStartScale = scale;
-        pinchStartTX = translateX;
-        pinchStartTY = translateY;
-        pinchCenter = getTouchCenter(e.touches[0], e.touches[1]);
       }
     }, { passive: false });
 
@@ -580,38 +910,36 @@
       if (e.touches.length === 2) {
         e.preventDefault();
 
+        const mid = getTouchMidpoint(e.touches[0], e.touches[1]);
+        const worldMid = screenToWorld(mid.x, mid.y);
         const dist = getTouchDistance(e.touches[0], e.touches[1]);
-        const center = getTouchCenter(e.touches[0], e.touches[1]);
-        const factor = dist / pinchStartDist;
 
-        const rect = svg.getBoundingClientRect();
-        const px = ((center.x - rect.left) / rect.width) * VIEW_W;
-        const py = ((center.y - rect.top) / rect.height) * VIEW_H;
-
-        const newScale = Math.max(minScale, Math.min(maxScale, pinchStartScale * factor));
-        const actualFactor = newScale / pinchStartScale;
-
-        translateX = px - (px - pinchStartTX) * actualFactor;
-        translateY = py - (py - pinchStartTY) * actualFactor;
-
-        if (pinchCenter) {
-          const prevPx = ((pinchCenter.x - rect.left) / rect.width) * VIEW_W;
-          const prevPy = ((pinchCenter.y - rect.top) / rect.height) * VIEW_H;
-          translateX += px - prevPx;
-          translateY += py - prevPy;
+        if (!pinchCenterWorld) {
+          pinchCenterWorld = worldMid;
+          pinchStartDist = dist;
+          pinchStartScale = scale;
+          return;
         }
 
+        const factor = dist / Math.max(1, pinchStartDist);
+        const newScale = Math.max(minScale, Math.min(maxScale, pinchStartScale * factor));
+        const actualFactor = newScale / scale;
+
+        translateX = pinchCenterWorld.x - (pinchCenterWorld.x - translateX) * actualFactor;
+        translateY = pinchCenterWorld.y - (pinchCenterWorld.y - translateY) * actualFactor;
         scale = newScale;
-        pinchCenter = center;
         setTransform();
       }
     }, { passive: false });
 
-    function centerOnKorea(initialScale) {
-      const koreaLon = 127.7669;
-      const koreaLat = 35.9078;
-      const [kx, ky] = project(koreaLon, koreaLat);
+    svg.addEventListener("touchend", (e) => {
+      if (e.touches.length < 2) {
+        pinchCenterWorld = null;
+      }
+    });
 
+    function centerOnKorea(initialScale) {
+      const [kx, ky] = project(127.7669, 35.9078);
       scale = Math.max(minScale, Math.min(maxScale, initialScale));
       translateX = VIEW_W / 2 - kx * scale;
       translateY = VIEW_H / 2 - ky * scale;
@@ -620,14 +948,13 @@
 
     async function loadWorld() {
       try {
-        const res = await fetch("https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson");
+        const res = await fetch("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson");
         const geojson = await res.json();
 
         for (const feature of geojson.features) {
-          const geometry = feature.geometry;
-          if (!geometry) continue;
+          if (!feature.geometry || shouldHideFeature(feature)) continue;
 
-          const d = geometryToPath(geometry);
+          const d = geometryToPath(feature.geometry);
           if (!d) continue;
 
           const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -635,46 +962,39 @@
           path.setAttribute("class", "land");
           countriesGroup.appendChild(path);
 
-          const labelPos = getLabelPlacement(geometry);
+          const labelPos = getLabelPlacement(feature.geometry);
           if (!labelPos) continue;
 
           const name = getCountryNameKo(feature);
+          const lines = splitNameLines(name);
           const fontSize = chooseFontSize(labelPos.area, labelPos.width, labelPos.height, name);
           const minZoomForLabel = chooseLabelZoom(labelPos.area, labelPos.width, labelPos.height, name);
 
-          const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-          text.setAttribute("x", labelPos.x);
-          text.setAttribute("y", labelPos.y);
-          text.setAttribute("class", "country-label");
-          text.setAttribute("font-size", fontSize.toFixed(1));
-          text.textContent = name;
-
-          labelsGroup.appendChild(text);
-
           const textWidth = Math.max(
-            fontSize * 1.2,
-            fontSize * name.length * 0.58
+            fontSize * 1.15,
+            Math.max(...lines.map(line => line.length), 1) * fontSize * 0.62
           );
-          const textHeight = fontSize * 1.15;
+          const textHeight = Math.max(fontSize * 1.12, lines.length * fontSize * 0.86);
 
-          labelItems.push({
-            el: text,
+          const item = {
             name,
+            lines,
             x: labelPos.x,
             y: labelPos.y,
             area: labelPos.area,
-            width: labelPos.width,
-            height: labelPos.height,
             minZoom: minZoomForLabel,
             baseFontSize: fontSize,
             textWidth,
             textHeight,
             priority: labelPos.area * 10 + Math.min(labelPos.width, 120) * 4 + Math.min(labelPos.height, 60) * 3
-          });
+          };
+
+          item.el = createLabelElement(item);
+          labelsGroup.appendChild(item.el);
+          labelItems.push(item);
         }
 
         loading.classList.add("hidden");
-
         minScale = 1;
         centerOnKorea(2.2);
       } catch (err) {
